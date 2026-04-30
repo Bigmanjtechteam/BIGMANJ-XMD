@@ -15,46 +15,40 @@ async function playCommand(sock, chatId, message, args) {
         // Tuma Thumbnail
         await sock.sendMessage(chatId, {
             image: { url: v.thumbnail },
-            caption: `🎵 *Title:* ${v.title}\n👤 *Author:* ${v.author.name}`
+            caption: `🎵 *Title:* ${v.title}\n👤 *Author:* ${v.author.name}\n⏲️ *Dur:* ${v.timestamp}`
         }, { quoted: message });
 
         await sock.sendMessage(chatId, { react: { text: '📥', key: message.key } }).catch(() => {});
 
-        let audioUrl = null;
+        // 1. Pata data kutoka API ya pili (ytdown)
+        const apiUrl = `https://nayan-video-downloader.vercel.app/ytdown?url=${encodeURIComponent(v.url)}`;
+        const res = await axios.get(apiUrl);
+        
+        // Kufuata JSON uliyotoa: data -> data -> data -> audio
+        const audioUrl = res.data?.data?.data?.audio || res.data?.data?.audio;
 
-        // --- JARIBIO LA 1: alldown API ---
-        try {
-            const res1 = await axios.get(`https://nayan-video-downloader.vercel.app/alldown?url=${encodeURIComponent(v.url)}`);
-            // Kulingana na JSON yako: data.data.high (au low kama mbadala)
-            audioUrl = res1.data?.data?.data?.high || res1.data?.data?.data?.low;
-        } catch (e) {
-            console.log("Alldown failed, switching to ytdown...");
-        }
+        if (!audioUrl) throw new Error("API haikutoa link ya audio.");
 
-        // --- JARIBIO LA 2: ytdown API (Fallback) ---
-        if (!audioUrl) {
-            try {
-                const res2 = await axios.get(`https://nayan-video-downloader.vercel.app/ytdown?url=${encodeURIComponent(v.url)}`);
-                // Kulingana na JSON yako ya pili: data.data.audio
-                audioUrl = res2.data?.data?.data?.audio;
-            } catch (e) {
-                throw new Error("API zote mbili zimefeli.");
-            }
-        }
+        // 2. Badili audio kuwa Buffer (Hii inazuia error za link)
+        const response = await axios({
+            method: 'get',
+            url: audioUrl,
+            responseType: 'arraybuffer'
+        });
+        const buffer = Buffer.from(response.data, 'binary');
 
-        if (!audioUrl) throw new Error("Sikuweza kupata link ya audio kwnye API.");
-
-        // TUMA AUDIO
+        // 3. Tuma kama Audio/mp4
         await sock.sendMessage(chatId, {
-            audio: { url: audioUrl },
-            mimetype: 'audio/mpeg',
-            fileName: `${v.title}.mp3`
+            audio: buffer,
+            mimetype: 'audio/mp4',
+            fileName: `${v.title}.mp4`,
+            ptt: false
         }, { quoted: message });
 
         await sock.sendMessage(chatId, { react: { text: '✅', key: message.key } }).catch(() => {});
 
     } catch (err) {
-        console.error("DEBUG:", err.message);
+        console.error("DEBUG ERROR:", err.message);
         await sock.sendMessage(chatId, {
             text: `❌ *Error!*\n\n_Sababu: ${err.message}_`
         }, { quoted: message });

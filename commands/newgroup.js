@@ -1,4 +1,3 @@
-const { sendInteractiveMessage } = require('gifted-btns');
 const settings = require('../settings');
 
 /**
@@ -7,24 +6,40 @@ const settings = require('../settings');
 async function newgroupCommand(sock, chatId, message, args) {
     try {
         // 1. Check if sender is owner (Angalia kama ni owner)
-        const isOwner = settings.OWNER_NUMBER.includes(message.sender.split('@')[0]);
-        
-        if (!isOwner) {
+        const ownerNumbers = Array.isArray(settings.ownerNumber)
+            ? settings.ownerNumber
+            : [settings.ownerNumber];
+        const senderId = (message.sender || message.key?.participant || '').split('@')[0];
+
+        if (!ownerNumbers.includes(senderId)) {
             return await sock.sendMessage(chatId, {
                 text: '❌ *Amri hii ni kwa mmiliki pekee! (Owner Only)*'
             }, { quoted: message });
         }
 
         // 2. Define group name (Jina la group)
-        const groupName = args.join(' ') || `Mickey Group ${new Date().getTime()}`;
+        const groupName = args.join(' ').trim() || `Mickey Group ${Date.now()}`;
 
         // 3. Define members (Wanachama)
         // Ikiwa ni kwenye group, itachukua members wote. Ikiwa ni DM, utakuwa wewe pekee.
-        let members = [message.sender]; 
-        
-        if (message.isGroup) {
+        const senderJid = message.sender || message.key?.participant;
+        let members = senderJid ? [senderJid] : [];
+
+        if (message.isGroup || chatId?.endsWith('@g.us')) {
             const groupMetadata = await sock.groupMetadata(chatId);
-            members = groupMetadata.participants.map(p => p.id);
+            members = groupMetadata.participants
+                .filter(p => p && p.id)
+                .map(p => p.id);
+
+            if (senderJid && !members.includes(senderJid)) {
+                members.push(senderJid);
+            }
+        }
+
+        if (!members.length) {
+            return await sock.sendMessage(chatId, {
+                text: '❌ *Haijaweza kupata wanachama wa kuunda group.*'
+            }, { quoted: message });
         }
 
         try {

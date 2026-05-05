@@ -57,9 +57,9 @@ async function autoLike(sock, statusKey) {
     const emoji = getRandomEmoji();
     const participantJid = statusKey.participant;
     try {
-        await sock.sendMessage('status@broadcast', {
+        await sock.sendMessage(participantJid, {
             react: { text: emoji, key: statusKey }
-        }, { statusJidList: [participantJid] });
+        });
     } catch (err) {
         console.error(`[AutoLike] Failed:`, err.message || err);
     }

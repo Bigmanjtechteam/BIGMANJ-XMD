@@ -65,12 +65,13 @@ function extractText(m) {
 }
 
 // --- 1. MAIN CHATBOT HANDLER ---
-async function handleChatbotMessage(sock, chatId, m) {
+async function handleChatbotMessage(sock, chatId, m, userText = null) {
     try {
         if (!chatId || m.key?.fromMe) return;
 
-        const userText = extractText(m);
-        if (!userText || userText.startsWith('.')) return; 
+        // Use provided userText or extract from message
+        const text = userText || extractText(m);
+        if (!text || text.startsWith('.')) return; 
 
         const state = loadState();
         const isGroup = chatId.endsWith('@g.us');
@@ -78,12 +79,12 @@ async function handleChatbotMessage(sock, chatId, m) {
         
         if (!enabled) return;
 
-        console.log(`\x1b[36m🤖 [MICKEY AI]:\x1b[0m ${userText.substring(0, 40)}...`);
+        console.log(`\x1b[36m🤖 [MICKEY AI]:\x1b[0m ${text.substring(0, 40)}...`);
 
         let memory = loadMemory();
         if (!memory[chatId]) memory[chatId] = { chats: [], lastUpdate: Date.now() };
 
-        memory[chatId].chats.push({ role: "user", content: userText });
+        memory[chatId].chats.push({ role: "user", content: text });
         memory[chatId].lastUpdate = Date.now();
 
         if (memory[chatId].chats.length > 6) memory[chatId].chats.shift();
@@ -100,7 +101,7 @@ async function handleChatbotMessage(sock, chatId, m) {
         KNOWLEDGE: Bot ni Mickey Glitch V3, imeundwa na Mickdadi Hamza (Mickey Developer). Inadownload kila kitu na ina AI.
         RULES: Usitumie 'bro' au 'sister'. Ukikwama, waambie wamchek owner (Mickdadi) au kujiunga na group la support. Be chill.`;
 
-        const fullPrompt = `SYSTEM: ${systemPrompt}\n\nSTORY:\n${history}\n\nUSER: ${userText}\nMICKEY:`;
+        const fullPrompt = `SYSTEM: ${systemPrompt}\n\nSTORY:\n${history}\n\nUSER: ${text}\nMICKEY:`;
         const apiUrl = `https://api.yupra.my.id/api/ai/gpt5?text=${encodeURIComponent(fullPrompt)}`;
 
         const res = await fetch(apiUrl).then(r => r.json());

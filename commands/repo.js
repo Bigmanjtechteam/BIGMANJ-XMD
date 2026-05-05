@@ -1,8 +1,9 @@
 /**
- * repo.js - Repository Information (Simplified)
- * Shows GitHub repo info without complex interactive messages
+ * repo.js - Repository Information with Interactive Buttons
+ * Shows GitHub repo info with CTA buttons for copy, open URL, and download ZIP
  */
 const axios = require('axios');
+const { sendInteractiveMessage } = require('gifted-btns');
 
 // Format date to readable format
 function formatDate(dateString) {
@@ -40,7 +41,7 @@ async function repoCommand(sock, chatId, message) {
 
         const repo = repoRes.data;
 
-        // Build repository information text
+        // Build repository information text (reduced links)
         const repoText = `✨ *${repo.name.toUpperCase()}*\n\n` +
             `👤 *Owner:* ${repo.owner.login}\n` +
             `⭐ *Stars:* ${repo.stargazers_count.toLocaleString()}\n` +
@@ -51,16 +52,35 @@ async function repoCommand(sock, chatId, message) {
             `📜 *License:* ${repo.license?.name || 'N/A'}\n` +
             `📅 *Last Updated:* ${formatDate(repo.updated_at)}\n\n` +
             `📝 *Description:*\n${repo.description || 'No description available'}\n\n` +
-            `🔗 *Repository:* ${repo.html_url}\n\n` +
-            `🌐 *Visit GitHub:* ${repo.html_url}\n` +
-            `🐛 *Issues:* ${repo.html_url}/issues\n` +
-            `👥 *Contributors:* ${repo.html_url}/graphs/contributors\n` +
-            `📚 *Clone URL:* \`${repo.clone_url}\`\n\n` +
             `💡 *Type .menu to see all commands*`;
 
-        // Send simple text message
-        await sock.sendMessage(chatId, {
-            text: repoText
+        // Send interactive message with CTA buttons
+        await sendInteractiveMessage(sock, chatId, {
+            text: repoText,
+            footer: "Mickey Glitch Tech • Powered by Mickey Glitch",
+            interactiveButtons: [
+                {
+                    name: 'cta_copy',
+                    buttonParamsJson: JSON.stringify({
+                        display_text: '📋 Copy Repo Link',
+                        copy_code: repo.html_url
+                    })
+                },
+                {
+                    name: 'cta_url',
+                    buttonParamsJson: JSON.stringify({
+                        display_text: '🌐 Open Repository',
+                        url: repo.html_url
+                    })
+                },
+                {
+                    name: 'quick_reply',
+                    buttonParamsJson: JSON.stringify({
+                        display_text: '📦 Download ZIP',
+                        id: 'repo_download_zip'
+                    })
+                }
+            ]
         }, { quoted: message });
 
         // Send success reaction

@@ -355,7 +355,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 // Chatbot handling: try to respond in groups or private chats if enabled
                 try {
                     if (typeof handleChatbotMessage === 'function') {
-                        await handleChatbotMessage(sock, chatId, message, userMessage);
+                        await handleChatbotMessage(sock, chatId, message, rawText);
                     }
                 } catch (e) {
                     console.error('handleChatbotMessage error:', e?.message || e);

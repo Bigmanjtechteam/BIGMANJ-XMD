@@ -2,11 +2,11 @@ const moment = require('moment-timezone');
 const fs = require('fs');
 const path = require('path');
 const { sendInteractiveMessage } = require('gifted-btns');
-const imageUrl = 'https://water-billing-292n.onrender.com/1761205727440.png';
 
 /**
  * @project: MICKEY GLITCH V3.0.5
  * @author: Quantum Base Developer (TZ)
+ * @description: Enhanced Menu - Reads real command names & metadata
  */
 
 const menuCommand = async (sock, chatId, m) => {
@@ -21,35 +21,49 @@ const menuCommand = async (sock, chatId, m) => {
         const menuSections = {};
 
         for (const file of commandFiles) {
-            // Epuka kuorodhesha menu yenyewe ndani ya list ya commands
-            if (file === 'menu.js' || file === 'help.js') continue;
+            // Epuka faili za mfumo zisizo na amri za watumiaji
+            if (['menu.js', 'help.js', 'main.js'].includes(file)) continue;
 
             try {
+                // Tunafuta cache ili kupata mabadiliko mapya ya code (Hot Reloading)
+                delete require.cache[require.resolve(path.join(commandsDir, file))];
                 const cmdFile = require(path.join(commandsDir, file));
 
-                let cmdName = cmdFile.name || file.replace('.js', ''); 
-                cmdName = cmdName.toLowerCase().replace('command', '');
+                // 🛠️ LOGIC YA KUPATA JINA HALISI:
+                // 1. Inatafuta 'command' 2. Inatafuta 'alias' ya kwanza 3. Inatafuta 'name' 4. Mwisho ni jina la faili
+                let cmdName = cmdFile.command || 
+                              (Array.isArray(cmdFile.alias) ? cmdFile.alias[0] : cmdFile.alias) || 
+                              cmdFile.name || 
+                              file.replace('.js', '');
 
-                const category = (cmdFile.category || 'MENU').toUpperCase();
-                const description = cmdFile.description || `Tumia .${cmdName}`;
+                // Kusafisha jina: Herufi ndogo na kufuta maneno ya ziada
+                cmdName = cmdName.toString().toLowerCase().replace('command', '').trim();
+
+                const category = (cmdFile.category || 'Mengineyo').toUpperCase();
+                const description = cmdFile.description || `Tumia amri ya .${cmdName}`;
 
                 if (!menuSections[category]) {
                     menuSections[category] = [];
                 }
 
+                // Tunaongeza kwenye section husika
                 menuSections[category].push({
-                    header: '✨',
-                    title: cmdName.charAt(0).toUpperCase() + cmdName.slice(1),
+                    header: '', 
+                    title: `.${cmdName.toUpperCase()}`,
                     description: description,
-                    id: `.${cmdName}`  // ⭐ IMPORTANT: Button ID must start with '.'
+                    id: `.${cmdName}` 
                 });
+
             } catch (e) {
-                console.log(`Skipping ${file} due to export error: ${e.message}`);
+                // Skip files ambazo si commands au zina error
                 continue;
             }
         }
 
-        const sections = Object.keys(menuSections).map(cat => ({
+        // Kupanga sections (Categories) kwa herufi (A-Z)
+        const sortedCategories = Object.keys(menuSections).sort();
+
+        const sections = sortedCategories.map(cat => ({
             title: `⭐ ${cat}`,
             rows: menuSections[cat]
         }));
@@ -60,21 +74,38 @@ const menuCommand = async (sock, chatId, m) => {
 ┌  👋 *Habari za ${greet}*
 │  👤 *User:* ${m.pushName || 'User'}
 │  📅 *Date:* ${now.format('ddd, MMM D')}
+│  ⏰ *Time:* ${now.format('HH:mm:ss')}
 └────────────────────┘
 *Quantum Base Developer (TZ)*
 
-👇 *Bonyeza amri hapo chini:*`;
+👇 *Chagua kundi la amri hapo chini:*`;
 
-        console.log(`📋 Sending menu with ${sections.length} sections`);
-
-        return await sendInteractiveMessage(sock, chatId, {
+        // Tuma ujumbe wa interactive (Button/List)
+        await sendInteractiveMessage(sock, chatId, {
             text: helpText,
+            contextInfo: {
+                externalAdReply: {
+                    title: "𝙼𝚒𝚌𝚔𝚎𝚢 𝙶𝚕𝚒𝚝𝚌𝚑 𝙼𝚎𝚗𝚞 𝚂𝚢𝚜𝚝𝚎𝚖",
+                    body: "𝙿𝚘𝚠𝚎𝚛𝚎𝚍 𝚋𝚢 𝚀𝚞𝚊𝚗𝚝𝚞𝚖 𝙲𝚘𝚍𝚎",
+                    thumbnailUrl: 'https://water-billing-292n.onrender.com/1761205727440.png',
+                    sourceUrl: 'https://whatsapp.com/channel/0029Vb6B9xFCxoAseuG1g610',
+                    mediaType: 1,
+                    renderLargerThumbnail: true
+                }
+            },
             interactiveButtons: [
                 {
                     name: 'single_select',
                     buttonParamsJson: JSON.stringify({
                         title: '📋 FUNGUA MENU',
                         sections: sections
+                    })
+                },
+                {
+                    name: 'quick_reply',
+                    buttonParamsJson: JSON.stringify({
+                        display_text: 'PING BOT ⚡',
+                        id: '.ping'
                     })
                 }
             ]
@@ -83,19 +114,10 @@ const menuCommand = async (sock, chatId, m) => {
     } catch (e) {
         console.error('Menu Cmd Error:', e);
         await sock.sendMessage(chatId, { 
-            text: '❌ *Error occurred! (Hitilafu imetokea)*' 
+            text: '❌ *Hitilafu imetokea wakati wa kuandaa Menu.*' 
         }, { quoted: m });
     }
 };
 
-// ────────────────────────────────────────────────
-// BUTTON HANDLERS - Auto-loaded by buttonLoader
-const buttonHandlers = {
-    // Menu navigation buttons (handled by falling through to command system)
-    // Dynamic command buttons like .add, .ai, .alive etc are handled by 
-    // the command prefix handler in main.js
-};
-
-// Export for auto-loader
+// Export kwa ajili ya main.js
 module.exports = menuCommand;
-module.exports.buttonHandlers = buttonHandlers;

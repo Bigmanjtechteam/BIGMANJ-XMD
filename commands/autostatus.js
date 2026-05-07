@@ -83,5 +83,4 @@ module.exports = {
 
 // Metadata kwa ajili ya menu.js
 module.exports.command = "autostatus";
-module.exports.category = "OWNER";
 module.exports.description = "Washa/Zima uwezo wa ku-view status za watu.";

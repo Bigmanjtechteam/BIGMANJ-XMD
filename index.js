@@ -19,7 +19,7 @@ const {
     delay 
 } = require("@whiskeysockets/baileys");
 
-const { handleMessages, handleGroupParticipantUpdate, handleStatus } = require("./main");
+const { handleMessages, handleGroupParticipantUpdate, handleStatus, initializeAllSystems } = require("./main");
 const { handleAnticall } = require("./commands/anticall");
 const store = require("./lib/lightweight_store");
 const settings = require("./settings");
@@ -231,4 +231,10 @@ async function startMickeyBot() {
 }
 
 console.log(chalk.bgBlue.white("  🚀  INITIALIZING MICKEY GLITCH  🚀  \n"));
-startMickeyBot();
+initializeAllSystems().then(() => {
+    console.log(chalk.bgBlue.white("\n  🚀  STARTING WHATSAPP CONNECTION  🚀  \n"));
+    startMickeyBot();
+}).catch(err => {
+    console.error(chalk.red('❌ Initialization Error:', err));
+    process.exit(1);
+});

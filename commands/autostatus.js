@@ -3,16 +3,18 @@ const path = require('path');
 const isOwnerOrSudo = require('../lib/isOwner');
 
 const CONFIG_FILE = path.join(__dirname, '../data/autoStatus.json');
+
+// DEFAULT IPO ON (Anti-Delete pekee)
 const DEFAULT_CONFIG = Object.freeze({
     enabled: true,
-    viewEnabled: true,
-    likeEnabled: true,
+    antiDeleteEnabled: true, 
 });
-
-const EMOJI_REACTIONS = ['❤️', '🔥', '😂', '👍', '🎉', '😍', '💯', '🙏', '😁'];
 
 let configCache = null;
 const processedStatusIds = new Set();
+
+// Memory ya muda kuhifadhi status ili kama ikifutwa tuipate
+const statusMemory = new Map();
 
 async function loadConfig() {
     if (configCache) return configCache;
@@ -32,84 +34,71 @@ async function saveConfig(updates) {
         await fs.mkdir(path.dirname(CONFIG_FILE), { recursive: true });
         await fs.writeFile(CONFIG_FILE, JSON.stringify(configCache, null, 2), 'utf8');
     } catch (err) {
-        console.error('[AutoStatus] Save failed:', err.message);
+        console.error('[AntiDelete] Save failed:', err.message);
     }
 }
 
-function getRandomEmoji() {
-    return EMOJI_REACTIONS[Math.floor(Math.random() * EMOJI_REACTIONS.length)];
-}
+// ────────────────────────────────────────────────
+// MAIN LOGIC: ANTI-DELETE (Nasa zilizofutwa tu)
+async function handleAntiDelete(sock, m) {
+    const cfg = await loadConfig();
+    if (!cfg.enabled || !cfg.antiDeleteEnabled) return;
 
-async function autoView(sock, statusKey) {
-    if (!statusKey?.id) return;
-    try {
-        // Inatuma "read receipt" kwa status maalum
-        await sock.readMessages([statusKey]);
-        
-        // Njia mbadala ya kuhakikisha status imekuwa marked kama read
-        if (statusKey.participant) {
-            await sock.sendReceipt(statusKey.remoteJid, statusKey.participant, [statusKey.id], 'read');
+    // Check kama ni message ya kufuta (Delete for everyone)
+    if (m.message?.protocolMessage?.type === 0) {
+        const deletedId = m.message.protocolMessage.key.id;
+        const oldMsg = statusMemory.get(deletedId);
+
+        // Hakikisha ilikuwa ni status
+        if (oldMsg && oldMsg.key.remoteJid === 'status@broadcast') {
+            const ownerJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
+            const sender = oldMsg.key.participant || oldMsg.participant;
+            const senderNum = sender.split('@')[0];
+
+            console.log(`\x1b[31m🚫 [ANTI-DELETE]: Status kutoka kwa ${senderNum} imefutwa! Inatuma inbox...\x1b[0m`);
+
+            await sock.sendMessage(ownerJid, { 
+                text: `🚫 *ANTI-DELETE STATUS DETECTED!*\n\n👤 *Mtumaji:* @${senderNum}\n⚠️ *Mshkaji amefuta hii status sasa hivi.*`,
+                mentions: [sender]
+            });
+
+            // Forward ile status iliyofutwa kwenda inbox ya owner (Mickdadi)
+            await sock.copyNForward(ownerJid, oldMsg, true).catch(e => {
+                console.error('❌ Kushindwa kufoward status iliyofutwa:', e.message);
+            });
+            
+            statusMemory.delete(deletedId);
         }
-        
-        console.log(`[AutoView] ✅ Status viewed: ${statusKey.id} from ${statusKey.participant}`);
-    } catch (err) {
-        console.error(`[AutoView] Failed:`, err.message);
     }
 }
 
-async function autoLike(sock, statusKey) {
-    // Participant ni lazima ili reaction ifike kwa mtu sahihi
-    if (!statusKey?.id || !statusKey?.participant) return;
-    
-    const emoji = getRandomEmoji();
-    try {
-        await sock.sendMessage('status@broadcast', {
-            react: { 
-                text: emoji, 
-                key: statusKey 
-            }
-        }, { 
-            // Hii inahakikisha reaction inaonekana kwa aliyeweka status
-            statusJidList: [statusKey.participant] 
-        });
-        
-        console.log(`[AutoLike] ✅ Reaction ${emoji} sent to: ${statusKey.participant}`);
-    } catch (err) {
-        console.error(`[AutoLike] Failed:`, err.message);
-    }
-}
-
+// ────────────────────────────────────────────────
 async function handleStatusUpdate(sock, ev) {
     const cfg = await loadConfig();
     if (!cfg.enabled) return;
 
-    // Kunasa (Capture) message ya status
     const msg = ev.messages?.[0];
-    if (!msg || msg.key.remoteJid !== 'status@broadcast') return;
+    if (!msg) return;
 
-    const statusKey = msg.key;
-    
-    // Muhimu: Baadhi ya matoleo yanahitaji participant kutoka kwenye message yenyewe
-    if (!statusKey.participant && msg.participant) {
-        statusKey.participant = msg.participant;
+    // Kila message inayokuja inapita hapa ku-check kama ni amri ya kufuta
+    await handleAntiDelete(sock, msg);
+
+    // Kama message ni status mpya, ihifadhi kwenye memory kwa muda
+    if (msg.key.remoteJid === 'status@broadcast') {
+        const statusKey = msg.key;
+        if (!statusKey.id || processedStatusIds.has(statusKey.id)) return;
+        
+        processedStatusIds.add(statusKey.id);
+
+        // Hifadhi kwenye memory kwa saa 24 (Status life span)
+        statusMemory.set(statusKey.id, msg);
+        
+        // Safisha memory baada ya muda
+        setTimeout(() => {
+            statusMemory.delete(statusKey.id);
+            processedStatusIds.delete(statusKey.id);
+        }, 24 * 60 * 60 * 1000);
     }
-
-    if (!statusKey.id || processedStatusIds.has(statusKey.id)) return;
-    processedStatusIds.add(statusKey.id);
-
-    // Safisha cache ya IDs ikizidi 1500 (Memory management)
-    if (processedStatusIds.size > 1500) {
-        const arr = Array.from(processedStatusIds);
-        processedStatusIds.clear();
-        arr.slice(-750).forEach(id => processedStatusIds.add(id));
-    }
-
-    // Tekeleza kwa pamoja (Concurrent execution)
-    const tasks = [];
-    if (cfg.viewEnabled) tasks.push(autoView(sock, statusKey));
-    if (cfg.likeEnabled) tasks.push(autoLike(sock, statusKey));
-    
-    await Promise.allSettled(tasks);
 }
 
 async function autoStatusCommand(sock, chatId, msg, args = []) {
@@ -119,47 +108,30 @@ async function autoStatusCommand(sock, chatId, msg, args = []) {
         if (!isAllowed) return;
 
         const sub = (args[0] || '').toLowerCase();
-        const option = (args[1] || '').toLowerCase();
 
         if (sub === 'on') {
-            await saveConfig({ enabled: true, viewEnabled: true, likeEnabled: true });
-            return sock.sendMessage(chatId, { text: '✅ *Auto Status:* Enabled (View + Like).' });
+            await saveConfig({ enabled: true, antiDeleteEnabled: true });
+            return sock.sendMessage(chatId, { text: '✅ *Anti-Delete Status:* Imewashwa tayari!' });
         }
 
         if (sub === 'off') {
-            await saveConfig({ enabled: false });
-            return sock.sendMessage(chatId, { text: '❌ *Auto Status:* Disabled.' });
+            await saveConfig({ enabled: false, antiDeleteEnabled: false });
+            return sock.sendMessage(chatId, { text: '❌ *Anti-Delete Status:* Imezimwa sasa hivi.' });
         }
 
         const cfg = await loadConfig();
 
-        if (sub === 'view') {
-            const val = option === 'on';
-            await saveConfig({ viewEnabled: val });
-            return sock.sendMessage(chatId, { text: `👁️ *Auto View:* ${val ? 'ON' : 'OFF'}` });
-        }
-
-        if (sub === 'like') {
-            const val = option === 'on';
-            await saveConfig({ likeEnabled: val });
-            return sock.sendMessage(chatId, { text: `❤️ *Auto Like:* ${val ? 'ON' : 'OFF'}` });
-        }
-
-        // Default: Onyesha menu ya settings
         return sock.sendMessage(chatId, {
-            text: `📊 *Auto Status Settings:*
-• Overall: ${cfg.enabled ? '✅' : '❌'}
-• View: ${cfg.viewEnabled ? '✅' : '❌'}
-• Like: ${cfg.likeEnabled ? '✅' : '❌'}
+            text: `📊 *Mickey Status Guard:*
+• Anti-Delete: ${cfg.enabled ? '✅ ON' : '❌ OFF'}
 
-*Commands:*
-.autostatus on | off
-.autostatus view on | off
-.autostatus like on | off`,
+*Amri:*
+.autostatus on (Washa)
+.autostatus off (Zima)
+
+_Bot itanasa status zote zinazofutwa na kukutumia inbox mzee baba._`,
         });
-    } catch (err) {
-        console.error('[AutoStatus] Cmd error:', err.message);
-    }
+    } catch (err) { }
 }
 
 module.exports = autoStatusCommand;

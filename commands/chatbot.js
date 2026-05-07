@@ -6,15 +6,13 @@ const fetch = require('node-fetch');
 const STATE_PATH = path.join(__dirname, '..', 'data', 'chatbot.json');
 const MEMORY_PATH = path.join(__dirname, '..', 'data', 'chatbot_memory.json');
 
-// --- MSAIDIZI WA DATA (HELPERS) ---
+// --- HELPERS ---
 function loadState() {
     try {
         if (!fs.existsSync(STATE_PATH)) return { perGroup: {}, private: false };
         const data = JSON.parse(fs.readFileSync(STATE_PATH, 'utf8'));
         return { perGroup: {}, private: false, ...data };
-    } catch (e) { 
-        return { perGroup: {}, private: false }; 
-    }
+    } catch (e) { return { perGroup: {}, private: false }; }
 }
 
 function saveState(state) {
@@ -32,7 +30,6 @@ function loadMemory() {
         const now = Date.now();
         let changed = false;
         for (const id in data) {
-            // Futa memory baada ya dk 10 za ukimya ili kuzuia kuchanganya mada
             if (data[id].lastUpdate && (now - data[id].lastUpdate > 600000)) {
                 delete data[id];
                 changed = true;
@@ -55,18 +52,11 @@ function extractText(m) {
     try {
         if (!m || !m.message) return '';
         const msg = m.message;
-        const text = msg.conversation || 
-                     msg.extendedTextMessage?.text || 
-                     msg.imageMessage?.caption || 
-                     msg.videoMessage?.caption || 
-                     msg.buttonsResponseMessage?.selectedButtonId ||
-                     msg.listResponseMessage?.singleSelectReply?.selectedRowId || 
-                     '';
-        return text.trim();
+        return (msg.conversation || msg.extendedTextMessage?.text || msg.imageMessage?.caption || msg.videoMessage?.caption || '').trim();
     } catch (e) { return ''; }
 }
 
-// --- 1. MAIN CHATBOT HANDLER ---
+// --- MAIN CHATBOT HANDLER ---
 async function handleChatbotMessage(sock, chatId, m, userText = null) {
     try {
         if (!chatId || m.key?.fromMe) return;
@@ -74,51 +64,51 @@ async function handleChatbotMessage(sock, chatId, m, userText = null) {
         const text = userText || extractText(m);
         if (!text || text.startsWith('.') || text.startsWith('!') || text.startsWith('/')) return; 
 
+        // 🛡️ [FIX]: Kupata Jina la Mtumaji (Push Name)
+        const userName = m.pushName || 'Mshkaji'; 
+
         const state = loadState();
         const isGroup = chatId.endsWith('@g.us');
-
         const enabled = isGroup ? !!state.perGroup?.[chatId]?.enabled : !!state.private;
         if (!enabled) return;
-
-        console.log(`\x1b[36m🤖 [MICKEY AI]: Processing:\x1b[0m ${text}`);
 
         let memory = loadMemory();
         if (!memory[chatId]) memory[chatId] = { chats: [], lastUpdate: Date.now() };
 
-        memory[chatId].chats.push({ role: "user", content: text });
+        memory[chatId].chats.push({ role: "user", content: text, name: userName });
         memory[chatId].lastUpdate = Date.now();
 
         if (memory[chatId].chats.length > 6) memory[chatId].chats.shift();
 
         const history = memory[chatId].chats
-            .map(msg => `${msg.role === 'user' ? 'Mteja' : 'Mickey'}: ${msg.content}`)
+            .map(msg => `${msg.role === 'user' ? msg.name : 'Mickey'}: ${msg.content}`)
             .join("\n");
 
         try { await sock.sendPresenceUpdate('composing', chatId); } catch (e) {}
 
-        // --- BORESHO LA PROMPT (IDENTITY ENFORCEMENT) ---
-        const systemPrompt = `STRICT RULES:
-        1. Wewe ni MICKEY GLITCH , sio Microsoft Copilot, sio AI Assistant, wala GPT.
-        2. Umetengenezwa na MICKDADI HAMZA (Owner).
-        3. Ongea kishkaji cha Kiswahili na kingereza kama mtu atakuja na kingereza. Tumia maneno kama 'Oya', 'Niaje', 'Safi mwanangu', 'Fresh', 'good'.
-        4. KAMWE usiseme wewe ni mtambo wa lugha au AI ya kampuni fulani. 
-        5. Jibu kwa ufupi na kwa vibe la mtaani lakini uwe na akili (Genius).
-        6. Kama huwezi kusaidia kitu, waambie "Mcheki mwanangu Mickdadi (Owner) akusaidie" au "Hiyo imekataa bro".`;
+        // --- BORESHO LA PROMPT (IDENTITY & PERSONALIZATION) ---
+        const systemPrompt = `Wewe ni MICKEY GLITCH, msaidizi mwerevu uliyetengenezwa na MICKDADI HAMZA (Quantum Code Developer).
+        
+        STRICT RULES:
+        1. Jina la mtu unayeongea naye sasa hivi ni "${userName}". Mtaje kwa jina lake anapokusalimia au unapoona inafaa ili kuleta vibe la kishkaji.
+        2. Lugha: Ongea kishkaji sana (Slang ya Tanzania). Tumia maneno kama: 'Oya ${userName}', 'Niaje mwanangu', 'Safi sana', 'Mzuka'.
+        3. Identity: Wewe ni bot, sio AI ya Microsoft au OpenAI. Ukimbiwa wewe ni GPT, kataa na useme wewe ni "Mickey Glitch V3".
+        4. Kama kuna ishu ngumu, mwambie "Mcheki mwanangu Mickdadi (Owner) namba 255612130873".
+        5. Jibu yawe mafupi, yenye akili (Genius), na yenye michapo.`;
 
-        const fullPrompt = `Roleplay: ${systemPrompt}\n\nChat History:\n${history}\n\nMteja: ${text}\nMickey:`;
+        const fullPrompt = `${systemPrompt}\n\nRecent Conversation:\n${history}\n\n${userName}: ${text}\nMickey:`;
 
         const apiUrl = `https://api.yupra.my.id/api/ai/gpt5?text=${encodeURIComponent(fullPrompt)}`;
-
         const fetchRes = await fetch(apiUrl);
         const res = await fetchRes.json();
 
-        let reply = res?.response || res?.result || res?.message || res?.data;
+        let reply = res?.response || res?.result || res?.message || res?.data || "";
 
-        if (!reply || reply.length < 1) return;
+        if (!reply) return;
 
-        // --- AUTO-CLEANER (Kama AI itajisahau na kusema yeye ni Copilot/Microsoft) ---
-        reply = reply.replace(/Microsoft|Copilot|AI Assistant|OpenAI|GPT/gi, "Mickey Glitch");
-        
+        // Auto-cleaner kuzuia kujitaja kama AI mgeni
+        reply = reply.replace(/Microsoft|Copilot|AI Assistant|OpenAI|GPT-3|GPT-4/gi, "Mickey Glitch");
+
         memory[chatId].chats.push({ role: "assistant", content: reply });
         saveMemory(memory);
 
@@ -129,7 +119,6 @@ async function handleChatbotMessage(sock, chatId, m, userText = null) {
     }
 }
 
-// --- 2. TOGGLE COMMAND (.chatbot on/off) ---
 async function groupChatbotToggleCommand(sock, chatId, m, body) {
     try {
         const state = loadState();
@@ -137,10 +126,9 @@ async function groupChatbotToggleCommand(sock, chatId, m, body) {
         const sub = args[0]?.toLowerCase();
 
         if (sub === 'private') {
-            const mode = args[1]?.toLowerCase();
-            state.private = (mode === 'on');
+            state.private = (args[1]?.toLowerCase() === 'on');
             saveState(state);
-            return await sock.sendMessage(chatId, { text: `✅ *Mickey Chatbot Private:* ${state.private ? 'ON 🟢' : 'OFF 🔴'}` }, { quoted: m });
+            return await sock.sendMessage(chatId, { text: `✅ *Private Chatbot:* ${state.private ? 'ON 🟢' : 'OFF 🔴'}` }, { quoted: m });
         }
 
         if (sub === 'on' || sub === 'off') {
@@ -152,22 +140,12 @@ async function groupChatbotToggleCommand(sock, chatId, m, body) {
                 state.private = isEnable;
             }
             saveState(state);
-            return await sock.sendMessage(chatId, { text: `✅ *Chatbot imewekwa:* ${isEnable ? 'ON 🟢' : 'OFF 🔴'}` }, { quoted: m });
+            return await sock.sendMessage(chatId, { text: `✅ *Chatbot:* ${isEnable ? 'ON 🟢' : 'OFF 🔴'}` }, { quoted: m });
         }
 
-        const helpMsg = `🤖 *MICKEY CHATBOT SETTINGS*\n\n` +
-                        `*Kwenye Group:* .chatbot on/off\n` +
-                        `*Inbox/Private:* .chatbot private on/off\n\n` +
-                        `_Powered by Mickey Infor Technology_`;
-
+        const helpMsg = `🤖 *MICKEY CHATBOT*\n\n.chatbot on/off\n.chatbot private on/off`;
         return await sock.sendMessage(chatId, { text: helpMsg }, { quoted: m });
-
     } catch (e) { console.error('❌ Toggle Error:', e); }
 }
 
-module.exports = { 
-    handleChatbotMessage, 
-    groupChatbotToggleCommand,
-    name: 'chatbot',
-    category: 'main'
-};
+module.exports = { handleChatbotMessage, groupChatbotToggleCommand };

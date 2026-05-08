@@ -6,7 +6,7 @@ const { sendInteractiveMessage } = require('gifted-btns');
 /**
  * @project: MICKEY GLITCH V3.0.5
  * @author: Quantum Base Developer (TZ)
- * @description: Enhanced Menu - Reads real command names & metadata
+ * @description: Enhanced Menu - Manual command list grouped by categories
  */
 
 const menuCommand = async (sock, chatId, m) => {
@@ -15,153 +15,151 @@ const menuCommand = async (sock, chatId, m) => {
         const now = moment().tz('Africa/Dar_es_Salaam');
         const greet = now.hour() < 12 ? 'Asubuhi ☀️' : now.hour() < 18 ? 'Mchana 🌤️' : 'Jioni 🌙';
 
-        const commandsDir = path.join(__dirname, '../commands');
-        const commandFiles = fs.readdirSync(commandsDir).filter(file => file.endsWith('.js'));
-
-        const mainJsPath = path.join(__dirname, '../main.js');
-        const mainSource = fs.existsSync(mainJsPath) ? fs.readFileSync(mainJsPath, 'utf8') : '';
-        const commandTriggers = extractCommandTriggers(mainSource);
-
-        const menuSections = {};
-
-        function extractCommandTriggers(source) {
-            const handlerToFile = {};
-            const importRegex = /const\s+(?:\{([^}]+)\}|(\w+))\s*=\s*require\(\s*['"]\.\/commands\/([^'"]+)['"]\s*\);/g;
-            let match;
-
-            while ((match = importRegex.exec(source)) !== null) {
-                const destructured = match[1];
-                const singleName = match[2];
-                const fileName = match[3];
-
-                if (destructured) {
-                    destructured.split(',').map(name => name.trim()).forEach(name => {
-                        if (name) {
-                            handlerToFile[name] = fileName;
-                        }
-                    });
-                } else if (singleName) {
-                    handlerToFile[singleName] = fileName;
-                }
+        const MENU_CATEGORIES = [
+            {
+                title: 'GENERAL',
+                items: [
+                    { command: '.help', description: 'Show the full command menu' },
+                    { command: '.ping', description: 'Check bot speed and uptime' },
+                    { command: '.alive', description: 'Check if the bot is online' },
+                    { command: '.owner', description: 'Show bot owner contact' },
+                    { command: '.repo', description: 'Show bot repository info' },
+                    { command: '.stats', description: 'Show bot statistics' },
+                    { command: '.settings', description: 'Open bot settings' },
+                    { command: '.checkupdates', description: 'Check for bot updates' }
+                ]
+            },
+            {
+                title: 'GROUP',
+                items: [
+                    { command: '.add', description: 'Add a user to this group' },
+                    { command: '.kick', description: 'Remove a user from the group' },
+                    { command: '.promote', description: 'Promote a member to admin' },
+                    { command: '.demote', description: 'Demote a group admin' },
+                    { command: '.tagall', description: 'Mention all group members' },
+                    { command: '.tagnotadmin', description: 'Mention members who are not admins' },
+                    { command: '.hidetag', description: 'Send an invisible mention message' },
+                    { command: '.tag', description: 'Tag a specific user' },
+                    { command: '.mention', description: 'Mention users in this chat' },
+                    { command: '.setmention', description: 'Set mention mode for group' },
+                    { command: '.setgname', description: 'Change group name' },
+                    { command: '.setgdesc', description: 'Change group description' },
+                    { command: '.setgpp', description: 'Set group profile picture' }
+                ]
+            },
+            {
+                title: 'MODERATION',
+                items: [
+                    { command: '.ban', description: 'Ban a user from using the bot' },
+                    { command: '.unban', description: 'Unban a user' },
+                    { command: '.antibadword', description: 'Block bad language automatically' },
+                    { command: '.antilink', description: 'Block links in group automatically' },
+                    { command: '.antitag', description: 'Block unwanted tags automatically' },
+                    { command: '.antistatusmention', description: 'Block status mention abuse' },
+                    { command: '.pmblocker', description: 'Block private messages automatically' },
+                    { command: '.anticall', description: 'Block unwanted calls automatically' },
+                    { command: '.resetlink', description: 'Revoke and reset group invite link' },
+                    { command: '.staff', description: 'Show group admins / staff list' }
+                ]
+            },
+            {
+                title: 'MEDIA',
+                items: [
+                    { command: '.sticker', description: '.sticker' },
+                    { command: '.stickeralt', description: 'Create alternate sticker format' },
+                    { command: '.stickertelegram', description: 'Create Telegram-style sticker' },
+                    { command: '.getpp', description: 'Download profile picture' },
+                    { command: '.setpp', description: 'Set your profile picture' },
+                    { command: '.pp', description: 'Get your own profile picture' },
+                    { command: '.img-blur', description: 'Blur an image' },
+                    { command: '.facebook', description: 'Download Facebook media' },
+                    { command: '.instagram', description: 'Download Instagram post' },
+                    { command: '.igs', description: 'Download Instagram story' },
+                    { command: '.igsc', description: 'Download Instagram story' },
+                    { command: '.tiktok', description: 'Download TikTok video' },
+                    { command: '.shazam', description: 'Identify music by sound' }
+                ]
+            },
+            {
+                title: 'AUDIO / VIDEO',
+                items: [
+                    { command: '.play', description: 'Download audio from YouTube' },
+                    { command: '.video', description: 'Download video from YouTube' },
+                    { command: '.music', description: 'Search and download music' },
+                    { command: '.url', description: 'Convert link to media download' }
+                ]
+            },
+            {
+                title: 'FUN',
+                items: [
+                    { command: '.compliment', description: 'Send a compliment message' },
+                    { command: '.lyrics', description: 'Search song lyrics' },
+                    { command: '.character', description: 'Generate a character message' },
+                    { command: '.wasted', description: 'Create wasted-style effect' },
+                    { command: '.mickey', description: 'Show Mickey Glitch animation' },
+                    { command: '.weather', description: 'Show weather information' },
+                    { command: '.report', description: 'Send a report message' },
+                    { command: '.halotel', description: 'Show Halotel service info' },
+                    { command: '.waste', description: 'Create a waste-style effect' }
+                ]
+            },
+            {
+                title: 'AUTOMATION',
+                items: [
+                    { command: '.autostatus', description: 'Auto view + like status (default ON)' },
+                    { command: '.autotyping', description: 'Auto typing status' },
+                    { command: '.autoread', description: 'Auto read messages' },
+                    { command: '.areact', description: 'Auto react to messages' }
+                ]
+            },
+            {
+                title: 'AI / BOT',
+                items: [
+                    { command: '.gpt', description: 'Chat with GPT' },
+                    { command: '.aivoice', description: 'Create AI voice response' },
+                    { command: '.imagine', description: 'Generate image from prompt' },
+                    { command: '.sudo', description: 'Owner-only sudo command' },
+                    { command: '.update', description: 'Update the bot code' },
+                    { command: '.newgroup', description: 'Create a new group' },
+                    { command: '.ghost', description: 'Use ghost command features' },
+                    { command: '.gdrive', description: 'Download from Google Drive' },
+                    { command: '.getcode', description: 'Get a code from a link' },
+                    { command: '.getlink', description: 'Get direct download link' }
+                ]
+            },
+            {
+                title: 'EFFECTS',
+                items: [
+                    { command: '.metallic', description: 'Metallic image effect' },
+                    { command: '.ice', description: 'Ice image effect' },
+                    { command: '.snow', description: 'Snow image effect' },
+                    { command: '.impressive', description: 'Impressive effect' },
+                    { command: '.matrix', description: 'Matrix style effect' },
+                    { command: '.light', description: 'Light glow effect' },
+                    { command: '.neon', description: 'Neon effect' },
+                    { command: '.devil', description: 'Devil effect' },
+                    { command: '.purple', description: 'Purple effect' },
+                    { command: '.thunder', description: 'Thunder effect' },
+                    { command: '.leaves', description: 'Leaves effect' },
+                    { command: '.1917', description: '1917 movie style effect' },
+                    { command: '.arena', description: 'Arena effect' },
+                    { command: '.hacker', description: 'Hacker text effect' },
+                    { command: '.sand', description: 'Sand effect' },
+                    { command: '.blackpink', description: 'Blackpink style effect' },
+                    { command: '.glitch', description: 'Glitch text effect' },
+                    { command: '.fire', description: 'Fire effect' }
+                ]
             }
+        ];
 
-            const lines = source.split(/\r?\n/);
-            const mapping = {};
-            let activeTriggers = [];
-
-            function addTriggers(handler) {
-                const fileName = handlerToFile[handler];
-                if (!fileName || activeTriggers.length === 0) return;
-                if (!mapping[fileName]) mapping[fileName] = new Set();
-                activeTriggers.forEach(trigger => mapping[fileName].add(trigger));
-                activeTriggers = [];
-            }
-
-            function parseTriggers(text) {
-                const triggers = [];
-                const exactRegex = /userMessage\s*===\s*['"]([^'"]+)['"]/g;
-                const startsRegex = /userMessage\.startsWith\(\s*['"]([^'"]+)['"]\s*\)/g;
-                let m;
-
-                while ((m = exactRegex.exec(text)) !== null) {
-                    triggers.push(m[1].trim());
-                }
-                while ((m = startsRegex.exec(text)) !== null) {
-                    triggers.push(m[1].trim().replace(/\s+$/, ''));
-                }
-                return triggers;
-            }
-
-            for (const line of lines) {
-                const trimmed = line.trim();
-                const caseMatch = trimmed.match(/^case\s+(.+?):(.*)$/);
-                if (caseMatch) {
-                    activeTriggers = parseTriggers(caseMatch[1]);
-                    const afterCase = caseMatch[2].trim();
-                    if (afterCase.length > 0) {
-                        const awaitMatch = afterCase.match(/await\s+(\w+)\s*\(/);
-                        if (awaitMatch) {
-                            addTriggers(awaitMatch[1]);
-                            continue;
-                        }
-                    }
-                    continue;
-                }
-
-                const awaitMatch = trimmed.match(/await\s+(\w+)\s*\(/);
-                if (awaitMatch) {
-                    addTriggers(awaitMatch[1]);
-                    continue;
-                }
-
-                const callMatch = trimmed.match(/^(?:const\s+\w+\s*=\s*)?(\w+)\s*\(/);
-                if (callMatch && activeTriggers.length > 0) {
-                    addTriggers(callMatch[1]);
-                }
-            }
-
-            return Object.fromEntries(Object.entries(mapping).map(([key, set]) => [key, Array.from(set)]));
-        }
-
-        for (const file of commandFiles) {
-            // Epuka faili za mfumo zisizo na amri za watumiaji
-            if (['menu.js', 'help.js', 'main.js', 'statusforward.js'].includes(file)) continue;
-
-            try {
-                // Tunafuta cache ili kupata mabadiliko mapya ya code (Hot Reloading)
-                delete require.cache[require.resolve(path.join(commandsDir, file))];
-                const cmdFile = require(path.join(commandsDir, file));
-
-                // 🛠️ LOGIC YA KUPATA JINA HALISI:
-                // 1. Inatafuta metadata ya amri kama command/alias/name
-                // 2. Inapotofautiana na main.js, inatumia amri zilizoonyeshwa huko
-                const fileKey = file.replace('.js', '');
-                const mainTriggers = commandTriggers[fileKey] || [];
-
-                const normalizeCommandName = name => {
-                    if (!name) return '';
-                    return name.toString().toLowerCase().replace(/^\.+/, '').replace('command', '').trim();
-                };
-
-                let cmdName = normalizeCommandName(cmdFile.command) ||
-                              normalizeCommandName(Array.isArray(cmdFile.alias) ? cmdFile.alias[0] : cmdFile.alias) ||
-                              normalizeCommandName(cmdFile.name) ||
-                              normalizeCommandName(mainTriggers[0]) ||
-                              fileKey;
-
-                const aliases = mainTriggers.slice(1).map(t => t.replace(/^[.]/, ''))
-                    .filter(alias => alias && alias !== cmdName);
-
-                const category = (cmdFile.category || 'Mengineyo').toUpperCase();
-                let description = cmdFile.description || `Tumia amri ya .${cmdName}`;
-                if (aliases.length) {
-                    description += ` | Aliases: ${aliases.map(a => `.${a}`).join(', ')}`;
-                }
-
-                if (!menuSections[category]) {
-                    menuSections[category] = [];
-                }
-
-                // Tunaongeza kwenye section husika
-                menuSections[category].push({
-                    header: '', 
-                    title: `.${cmdName}`,
-                    description: fileKey === 'sticker' ? `.${cmdName}` : description,
-                    id: `.${cmdName}` 
-                });
-
-            } catch (e) {
-                // Skip files ambazo si commands au zina error
-                continue;
-            }
-        }
-
-        // Kupanga sections (Categories) kwa herufi (A-Z)
-        const sortedCategories = Object.keys(menuSections).sort();
-
-        const sections = sortedCategories.map(cat => ({
-            title: `⭐ ${cat}`,
-            rows: menuSections[cat]
+        const sections = MENU_CATEGORIES.map(category => ({
+            title: `⭐ ${category.title}`,
+            rows: category.items.map(item => ({
+                header: '',
+                title: item.command.toLowerCase(),
+                description: item.description,
+                id: item.command.toLowerCase()
+            }))
         }));
 
         const helpText = `╔════════════════════╗

@@ -1,6 +1,6 @@
 /**
- * halotel.js - Mickey Glitch Business Assistant (Bundle Sales)
- * Imeboreshwa: AI ya Biashara, Antibug, na Auto-Order System.
+ * halotel.js - Mickey Glitch Business AI (Interactive Version)
+ * Kazi: AI anamalizia mchakato wa malipo baada ya mteja kuchagua bando.
  */
 
 const { sendInteractiveMessage } = require('gifted-btns');
@@ -11,12 +11,11 @@ const axios = require('axios');
 // ────────────────────────────────────────────────
 const CONFIG = {
     PRICE_PER_GB: 1000,
-    SELLER_NUMBER: '255615944741@s.whatsapp.net', // Namba ya kupokea oda
+    SELLER_NUMBER: '255615944741@s.whatsapp.net',
     BANNER: 'https://files.catbox.moe/ljabyq.png',
     FOOTER: '🚀 Powered by Mickey Glitch Tech',
 };
 
-// Packages
 const PACKAGES = [
     { gb: 10, price: 10000, label: 'Standard Pack',  id: 'h_pkg_10' },
     { gb: 15, price: 15000, label: 'Bronze Pack',    id: 'h_pkg_15' },
@@ -25,14 +24,17 @@ const PACKAGES = [
 ];
 
 // ────────────────────────────────────────────────
-// [BUSINESS AI LOGIC]
+// [BUSINESS AI CORE]
 // ────────────────────────────────────────────────
-async function getBusinessAIReply(query, userName) {
-    const bizPrompt = `Weweni , msaidizi wa biashara wa Mickdadi Hamza.
-    Kazi: Unasaidia kuuza bando la Halotel. Bei: 1GB = 1000/=.
-    Vifurushi: 10GB(10k), 15GB(15k), 20GB(20k), 25GB(25k).
-    Malipo: Halotel(0615944741) au AzamPesa(1615944741).
-    Vibe: Ongea kishkaji (Bongo Slang), mkarimu, shawishi mteja alipe.`;
+async function askMickeyBiz(query, context = "") {
+    const bizPrompt = `Wewe ni  msaidizi katika kitengo cha kuuza bando mkarimu wa Mickdadi. 
+    Kazi yako ni kusaidia wateja wanaonunua bando la Halotel (1GB = 1000).
+    MAELEZO YA MALIPO: Halotel (0615944741) au AzamPesa (1615944741).
+    MAAGIZO:
+    1. Kama mteja amechagua kifurushi, mpongeze na msisitize kulipia namba hizo.
+    2. Jibu maswali yao kishkaji (Bongo Slang).
+    3. Wahimize watume screenshot ya malipo.
+    ${context}`;
 
     const apis = [
         `https://apiskeith.top/ai/gpt?q=${encodeURIComponent(bizPrompt + query)}`,
@@ -46,27 +48,11 @@ async function getBusinessAIReply(query, userName) {
             if (reply) return reply.replace(/ChatGPT|OpenAI|Microsoft/gi, "Mickey Biz AI");
         } catch (e) { continue; }
     }
-    return "Nipo hapa kukusaidia kupata bando la Halotel chap chap. Chagua package hapa chini!";
+    return "Oya mwanangu, nipo hapa kukusaidia. Lipia kwenye namba zetu chap tuwashe bando!";
 }
 
 // ────────────────────────────────────────────────
-// [ORDER SYSTEM] - Tuma taarifa kwa muuzaji
-// ────────────────────────────────────────────────
-async function sendOrderNotification(sock, m, pkg, userNumber) {
-    const orderText = `🔔 *ODA MPYA YAMEINGIA*\n\n` +
-                     `👤 *Mteja:* @${userNumber.split('@')[0]}\n` +
-                     `📦 *Kifurushi:* ${pkg.gb}GB (${pkg.label})\n` +
-                     `💰 *Kiasi:* TSh ${pkg.price.toLocaleString()}\n\n` +
-                     `_Mteja amepewa maelekezo ya malipo. Kagua muamala wake!_`;
-
-    await sock.sendMessage(CONFIG.SELLER_NUMBER, { 
-        text: orderText, 
-        mentions: [userNumber] 
-    });
-}
-
-// ────────────────────────────────────────────────
-// HANDLE PACKAGE SELECTION
+// [ORDER & PAYMENT ASSISTANT]
 // ────────────────────────────────────────────────
 async function handlePackageSelection(sock, chatId, m, packageId) {
     try {
@@ -74,36 +60,30 @@ async function handlePackageSelection(sock, chatId, m, packageId) {
         const pkg = PACKAGES.find(p => p.id === cleanId);
         if (!pkg) return;
 
-        // Tuma oda kwa muuzaji kimyakimya
-        const mteja = m.key.participant || m.key.remoteJid;
-        await sendOrderNotification(sock, m, pkg, mteja);
+        const userName = m.pushName || 'Mshkaji';
+        const userJid = m.key.participant || m.key.remoteJid;
 
-        const payMsg = `✅ *ODA YAKO IMEPOKELEWA*\n\n` +
-                      `📦 *Package:* ${pkg.label}\n` +
-                      `💾 *GB:* ${pkg.gb} GB\n` +
-                      `💰 *Bei:* TSh ${pkg.price.toLocaleString()}/=\n\n` +
-                      `*HATUA ZA MALIPO:*\n` +
-                      `• Lipa TSh ${pkg.price.toLocaleString()} kwenda:\n` +
-                      `  👉 *0615944741* (Halotel)\n` +
-                      `  👉 *1615944741* (AzamPesa)\n\n` +
-                      `• Tuma Screenshot ya muamala kwa @${CONFIG.SELLER_NUMBER.split('@')[0]}\n\n` +
-                      `_Muuzaji ameshafahamishwa, atakupa bando lako punde tu baada ya kulipa!_`;
+        // 1. Tuma taarifa kwa muuzaji
+        await sock.sendMessage(CONFIG.SELLER_NUMBER, { 
+            text: `🔔 *ODA MPYA:* @${userJid.split('@')[0]} amechagua ${pkg.gb}GB.`,
+            mentions: [userJid]
+        });
+
+        // 2. AI anatoa maelekezo ya malipo
+        const aiInstruction = await askMickeyBiz(`Mteja ${userName} amechagua kifurushi cha ${pkg.gb}GB kwa TSh ${pkg.price}. Mwambie njia za malipo na unakaribisha maswali.`, `CONTEXT: Mteja kashachagua bando.`);
 
         const paymentButtons = [
-            { name: "cta_copy", buttonParamsJson: JSON.stringify({ display_text: "📋 Nakili Namba (Halotel)", copy_code: "0615944741" }) },
-            { name: "cta_call", buttonParamsJson: JSON.stringify({ display_text: "📞 Piga Simu", phone_number: "0615944741" }) }
+            { name: "cta_copy", buttonParamsJson: JSON.stringify({ display_text: "📋 Copy Halotel No", copy_code: "0615944741" }) },
+            { name: "cta_copy", buttonParamsJson: JSON.stringify({ display_text: "📋 Copy AzamPesa No", copy_code: "1615944741" }) }
         ];
 
         await sendInteractiveMessage(sock, chatId, {
-            text: payMsg,
-            interactiveButtons: paymentButtons,
+            text: `✨ *MICKEY BIZ ASSISTANT*\n\n${aiInstruction}`,
             footer: CONFIG.FOOTER,
-            contextInfo: { mentionedJid: [CONFIG.SELLER_NUMBER] }
+            interactiveButtons: paymentButtons
         }, { quoted: m });
 
-    } catch (error) {
-        console.error('[HALOTEL Selection Error]', error);
-    }
+    } catch (e) { console.error(e); }
 }
 
 // ────────────────────────────────────────────────
@@ -114,58 +94,46 @@ async function halotelCommand(sock, chatId, m, body = '') {
         const input = (body || '').toLowerCase().trim();
         const userName = m.pushName || 'Mteja';
 
-        // 🛡️ ANTIBUG - Chuja urefu
-        if (input.length > 5000) return;
-
-        // 1. Handle package selection
+        // 1. Ikiwa ni selection ya bando (kutoka kwenye button)
         if (input.includes('h_pkg_')) {
             return await handlePackageSelection(sock, chatId, m, input);
         }
 
-        // 2. Handle AI Questions (Kama sio command fupi ya .halotel)
-        if (input.length > 10 && !input.startsWith('.')) {
+        // 2. Ikiwa ni mteja anauliza maswali au anareply ujumbe wa bot
+        if (input.length > 3 && !input.startsWith('.')) {
             await sock.sendMessage(chatId, { react: { text: '👨‍💼', key: m.key } });
-            const aiReply = await getBusinessAIReply(input, userName);
-            return await sock.sendMessage(chatId, { text: `💼 *MICKEY BIZ:* ${aiReply}` }, { quoted: m });
+            const response = await askMickeyBiz(input, `Mteja anaitwa ${userName}.`);
+            return await sock.sendMessage(chatId, { text: `💼 *MICKEY BIZ:* ${response}` }, { quoted: m });
         }
 
-        // 3. Main Menu
-        const adText = `🌟 *HALOTEL INTERNET MANAGER* 🌟\n\n` +
-                      `Habari *${userName}*! Karibu upate bando la High-Speed.\n` +
-                      `🔥 Bei Nafuu: GB 1 = TSh ${CONFIG.PRICE_PER_GB}/=\n\n` +
-                      `Chagua package unayotaka hapa chini 👇`;
-
+        // 3. Main Menu (Ikitumika .halotel pekee)
+        const menuText = `Hujambo *${userName}*! 👋\nNaitwa Mickey Biz AI. Chagua bando unalotaka hapa chini nikupe maelekezo ya malipo. 👇`;
         const rows = PACKAGES.map(pkg => ({
             header: `${pkg.gb}GB`,
             title: pkg.label,
-            description: `TSh ${pkg.price.toLocaleString()}/=`,
+            description: `TSh ${pkg.price.toLocaleString()}`,
             id: `.${pkg.id}`
         }));
 
         await sendInteractiveMessage(sock, chatId, {
             image: { url: CONFIG.BANNER },
-            text: adText,
+            text: menuText,
             footer: CONFIG.FOOTER,
             interactiveButtons: [
                 {
                     name: 'single_select',
                     buttonParamsJson: JSON.stringify({
-                        title: '📦 CHAGUA PACKAGE',
-                        sections: [{ title: 'VIFURUSHI VYA HALOTEL', rows: rows }]
+                        title: '🛒 CHAGUA BANDO',
+                        sections: [{ title: 'HALOTEL PACKAGES', rows: rows }]
                     })
                 }
             ]
         }, { quoted: m });
 
-    } catch (error) {
-        console.error('[HALOTEL Command Error]', error);
-    }
+    } catch (e) { console.error(e); }
 }
 
-// ────────────────────────────────────────────────
-// EXPORT - Auto Registration (HAJAIBADILIKA)
-// ────────────────────────────────────────────────
 module.exports = halotelCommand;
 module.exports.name = 'halotel';
 module.exports.category = 'BUSINESS';
-module.exports.description = 'Halotel Internet Packages and Business AI';
+module.exports.description = 'Biashara ya bando na AI Assistant';

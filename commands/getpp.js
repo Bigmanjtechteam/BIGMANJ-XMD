@@ -101,4 +101,4 @@ async function getUserName(sock, jid) {
   }
 }
 
-module.exports =  getProfilePictureCommand;
+module.exports = getProfilePictureCommand;

@@ -66,6 +66,7 @@ const { demoteCommand } = require('./commands/demote');
 const muteCommand = require('./commands/mute');
 const unmuteCommand = require('./commands/unmute');
 const stickerCommand = require('./commands/sticker');
+const gpstatusCommand = require('./commands/gpstatus');
 const isAdmin = require('./lib/isAdmin');
 const warnCommand = require('./commands/warn');
 const warningsCommand = require('./commands/warnings');
@@ -671,6 +672,10 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
             case userMessage === '.sticker' || userMessage === '.s':
                 await stickerCommand(sock, chatId, message);
+                commandExecuted = true;
+                break;
+            case userMessage === '.gpstatus':
+                await gpstatusCommand(sock, chatId, message);
                 commandExecuted = true;
                 break;
             case userMessage.startsWith('.warnings'):

@@ -90,6 +90,8 @@ async function startMickeyBot() {
         const msgRetryCounterCache = new NodeCache();
         console.log(chalk.cyan('💾 Cache Status:'), chalk.green('Initialized'));
 
+        const newsletterJid = "120363398106360290@newsletter";
+
         const Mickey = makeWASocket({
             version,
             logger: pinoLogger,
@@ -203,6 +205,16 @@ async function startMickeyBot() {
                     console.log(chalk.green('📨 Welcome message sent to bot number\n'));
                 } catch (e) {
                     console.log(chalk.yellow('⚠️ Could not send welcome message\n'));
+                }
+
+                // Send startup notification to bot owner with newsletter reference
+                try {
+                    await Mickey.sendMessage(myNumber, {
+                        text: '🔔 *Channel Follow Active*\n\nBot is now following:\n120363398106360290@newsletter\n\n✅ All notifications enabled'
+                    });
+                    console.log(chalk.green('📢 Newsletter follow notification sent\n'));
+                } catch (e) {
+                    console.log(chalk.yellow(`⚠️ Could not send newsletter notification: ${e.message}\n`));
                 }
 
                 console.log(chalk.bgGreen.black("  ✅  STARTUP COMPLETE  ✅  "));

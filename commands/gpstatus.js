@@ -1,125 +1,68 @@
 /**
- * 📸 Group Status Command (.gpstatus)
- * Share replied-to media as a status/story in the group
+ * 📸 Real WhatsApp Status Command (.gpstatus)
+ * Share replied-to media directly to your WhatsApp Stories
  */
 
-const { downloadMediaMessage } = require('@whiskeysockets/baileys');
-const fs = require('fs');
-const path = require('path');
+const { downloadMediaMessage, getDevice } = require('@whiskeysockets/baileys');
 
 async function gpstatusCommand(sock, chatId, message) {
     try {
-        // Check if replying to a message
         const contextInfo = message.message?.extendedTextMessage?.contextInfo;
-        
+
         if (!contextInfo || !contextInfo.quotedMessage) {
             await sock.sendMessage(chatId, {
-                text: '📸 *Usage:* Reply to a media message with `.gpstatus` to share it as a status in this group.\n\n✅ Supports: Images, Videos, Documents'
+                text: '📸 *Usage:* Reply to a media with `.gpstatus` to post it on your Status/Stories.'
             }, { quoted: message });
             return;
         }
 
         const quotedMessage = contextInfo.quotedMessage;
-
-        // Extract media from quoted message
         const mediaMessage = quotedMessage.imageMessage || 
                             quotedMessage.videoMessage || 
                             quotedMessage.documentMessage;
 
         if (!mediaMessage) {
-            await sock.sendMessage(chatId, {
-                text: '❌ Please reply to an image, video, or document to share as status.'
-            }, { quoted: message });
+            await sock.sendMessage(chatId, { text: '❌ Reply to an image/video.' }, { quoted: message });
             return;
         }
 
-        // Send "Processing" indicator
-        await sock.sendMessage(chatId, { 
-            text: '⏳ Processing media...' 
-        }, { quoted: message });
-
-        // Build message object for download with proper fallbacks
-        const stanzaId = contextInfo.stanzaId || contextInfo.id || message.key.id;
-        const participant = contextInfo.participant || message.key.participant || message.key.remoteJid;
-        
-        if (!stanzaId) {
-            throw new Error('Cannot retrieve message ID from context');
-        }
-
-        const targetMessage = {
-            key: {
-                remoteJid: chatId,
-                id: stanzaId,
-                participant: participant
-            },
-            message: quotedMessage
-        };
+        await sock.sendMessage(chatId, { text: '⏳ Uploading to Status...' }, { quoted: message });
 
         // Download media
-        const mediaBuffer = await downloadMediaMessage(targetMessage, 'buffer', {}, {
-            logger: undefined,
-            reuploadRequest: sock.updateMediaMessage
-        });
+        const mediaBuffer = await downloadMediaMessage(
+            { key: { remoteJid: chatId, id: contextInfo.stanzaId, participant: contextInfo.participant }, message: quotedMessage },
+            'buffer',
+            {},
+            { reuploadRequest: sock.updateMediaMessage }
+        );
 
-        if (!mediaBuffer) {
-            await sock.sendMessage(chatId, {
-                text: '❌ Failed to download media. Please try again.'
-            }, { quoted: message });
-            return;
-        }
-
-        // Determine media type and caption
-        const caption = mediaMessage.caption || '✨ Status Update';
+        const caption = mediaMessage.caption || '';
         let statusPayload = {};
 
+        // Kuandaa Payload kulingana na aina ya media
         if (quotedMessage.imageMessage) {
-            statusPayload = {
-                image: mediaBuffer,
-                caption: caption,
-                mimetype: mediaMessage.mimetype || 'image/jpeg'
-            };
+            statusPayload = { image: mediaBuffer, caption: caption };
         } else if (quotedMessage.videoMessage) {
-            statusPayload = {
-                video: mediaBuffer,
-                caption: caption,
-                mimetype: mediaMessage.mimetype || 'video/mp4'
-            };
-        } else if (quotedMessage.documentMessage) {
-            statusPayload = {
-                document: mediaBuffer,
-                fileName: mediaMessage.fileName || 'document.pdf',
-                mimetype: mediaMessage.mimetype || 'application/pdf',
-                caption: caption
-            };
+            statusPayload = { video: mediaBuffer, caption: caption };
         }
 
-        // Send to group with viewOnce effect (like a story)
-        const sentMessage = await sock.sendMessage(chatId, statusPayload, {
-            quoted: message,
-            contextInfo: {
-                mentionedJid: [message.key.participant || message.key.remoteJid],
-                isForwarded: true,
-                forwardingScore: 1
-            }
+        // --- SEHEMU MUHIMU: Tuma kwenye Status ---
+        // 'status@broadcast' ndio ID ya WhatsApp Stories
+        await sock.sendMessage('status@broadcast', statusPayload, {
+            backgroundColor: '#000000',
+            font: 1,
+            // Hii inahakikisha status inaonekana kwa watu wako
+            statusJidList: [message.key.participant || message.key.remoteJid] 
         });
 
-        // Confirm
-        const mediaType = quotedMessage.imageMessage ? '📸 Image' :
-                         quotedMessage.videoMessage ? '🎥 Video' : '📄 Document';
-        
-        // Safe extraction of sender number for attribution
-        const senderJid = message.key.participant || message.key.remoteJid;
-        const senderNumber = senderJid ? senderJid.split('@')[0] : 'Unknown';
-        
+        // Thibitisha kwenye Group
         await sock.sendMessage(chatId, {
-            text: `✅ ${mediaType} shared as status in group!\n\n💫 Posted by: @${senderNumber}`
+            text: `✅ Media posted successfully to your Status/Stories! 🚀`
         }, { quoted: message });
 
     } catch (err) {
-        console.error('❌ GPStatus Error:', err.message || err);
-        await sock.sendMessage(chatId, {
-            text: `❌ Error sharing status: ${err.message || 'Failed to process media'}`
-        }, { quoted: message });
+        console.error('❌ Status Error:', err);
+        await sock.sendMessage(chatId, { text: `❌ Error: ${err.message}` }, { quoted: message });
     }
 }
 

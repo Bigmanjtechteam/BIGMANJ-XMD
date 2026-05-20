@@ -115,8 +115,9 @@ async function startMickeyBot() {
             },
             // ------------------------
             getMessage: async (key) => {
-                let jid = state.creds.me?.id ? state.creds.me.id.split(':')[0] + "@s.whatsapp.net" : "";
-                let msg = await store.loadMessage(jid, key.id);
+                if (!key || !key.id) return undefined;
+                const jid = key.remoteJid || key.participant || key.sender || '';
+                const msg = await store.loadMessage(jid, key.id);
                 return msg?.message || undefined;
             },
             msgRetryCounterCache

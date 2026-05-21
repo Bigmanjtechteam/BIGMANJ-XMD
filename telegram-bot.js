@@ -75,7 +75,7 @@ function formatHelpText() {
     '*Mickey Glitch Telegram Bot*',
     '',
     'Commands:',
-    '/pair <code> - Pair this Telegram chat with the bot',
+    '/pair <code|owner number> - Pair this Telegram chat with the bot',
     '/unpair - Stop pairing this chat',
     '/help - Show this help message',
     '/ping - Check bot responsiveness',
@@ -87,8 +87,37 @@ function formatHelpText() {
     'Example:',
     '/pair 1234',
     '',
-    '_Pairing is required before running bot commands._'
+    '_Pairing is required before running bot commands unless Telegram is in public mode or owner chat is detected._'
   ].join('\n');
+}
+
+function isOwnerChat(chatId) {
+  const ownerId = String(settings.telegram.ownerId || '').trim();
+  return ownerId && String(chatId) === ownerId;
+}
+
+function isTelegramAuthorized(chatId) {
+  if (isChatAllowed(chatId)) return true;
+  if (isOwnerChat(chatId)) return true;
+  if (String(settings.commandMode || '').toLowerCase() === 'public') return true;
+  return false;
+}
+
+function normalizePairCode(code) {
+  return String(code || '').trim();
+}
+
+function canPair(chatId, code) {
+  const ownerId = String(settings.telegram.ownerId || '').trim();
+  const ownerNumber = String(settings.ownerNumber || '').replace(/\D/g, '').trim();
+  const pairCode = String(settings.telegram.pairCode || '').trim();
+  const normalizedChat = String(chatId);
+  const normalizedCode = normalizePairCode(code);
+
+  if (ownerId && normalizedChat === ownerId) return true;
+  if (pairCode && normalizedCode === pairCode) return true;
+  if (ownerNumber && normalizedCode === ownerNumber) return true;
+  return false;
 }
 
 async function sendTelegramMessage(chatId, text, extra = {}) {
@@ -112,16 +141,6 @@ async function sendTelegramMessage(chatId, text, extra = {}) {
   } catch (error) {
     console.error('Telegram sendMessage failed:', error?.response?.data || error.message);
   }
-}
-
-function canPair(chatId, code) {
-  const ownerId = String(settings.telegram.ownerId || '').trim();
-  const pairCode = String(settings.telegram.pairCode || '').trim();
-  const normalizedChat = String(chatId);
-
-  if (ownerId && normalizedChat === ownerId) return true;
-  if (pairCode) return normalizedChat === ownerId || String(code || '').trim() === pairCode;
-  return true;
 }
 
 async function handleStickerTelegram(chatId, args) {
@@ -187,7 +206,8 @@ async function handleUpdate(update) {
   const rawText = String(message.text || '').trim();
   const commandText = rawText.split(/\s+/)[0].toLowerCase();
   const args = rawText.split(/\s+/).slice(1);
-  const allowed = isChatAllowed(chatId);
+  const allowed = isTelegramAuthorized(chatId);
+  const isActiveOwner = isOwnerChat(chatId);
 
   if (commandText === '/start' || commandText === '/menu' || commandText === '/help' || commandText === '.help') {
     await sendTelegramMessage(chatId, formatHelpText());
@@ -195,7 +215,7 @@ async function handleUpdate(update) {
   }
 
   if (commandText === '/pair' || commandText === '.pair') {
-    if (allowed) {
+    if (isChatAllowed(chatId) || isActiveOwner) {
       return sendTelegramMessage(chatId, '✅ Hii chat tayari imepangwa. Tumia /help kuona amri zilizopo.');
     }
 
@@ -209,7 +229,7 @@ async function handleUpdate(update) {
   }
 
   if (commandText === '/unpair' || commandText === '.unpair') {
-    if (!allowed) {
+    if (!isChatAllowed(chatId)) {
       return sendTelegramMessage(chatId, 'ℹ️ Chat hii haijawa paired. Tumia /pair ili kuanza.');
     }
     removeAllowedChat(chatId);

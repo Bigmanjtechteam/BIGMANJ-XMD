@@ -3,6 +3,9 @@ const path = require('path');
 const axios = require('axios');
 const yts = require('yt-search'); 
 const settings = require('./settings');
+const { exec } = require('child_process');
+const util = require('util');
+const execAsync = util.promisify(exec);
 
 const TELEGRAM_DATA_DIR = path.join(__dirname, 'data');
 const TELEGRAM_DATA_FILE = path.join(TELEGRAM_DATA_DIR, 'telegramPairs.json');
@@ -125,25 +128,31 @@ function removeAllowedChat(chatId) {
   saveAllowedChats(allowed);
 }
 
+// 👑 MENU APPEARANCE UPGRADE
 function formatHelpText() {
   return [
-    '*Mickey Glitch Telegram Bot*',
+    '┏━━━━━━━━━━━━━━━━━━━━┓',
+    '┃   *MICKEY GLITCH TELEGRAM BOT* ┃',
+    '┗━━━━━━━━━━━━━━━━━━━━┛',
     '',
-    '🔒 *Pairing System:*',
-    '/pair <code|owner number> - Unganisha Telegram chat na Bot',
-    '/unpair - Tenganisha pairing ya chat hii',
+    '🛡️ *PAIRING SYSTEM (INDEX)*',
+    '┣ /pair `<code|number>` ➔ Connect chat to bot',
+    '┗ /unpair ➔ Disconnect chat from bot',
     '',
-    '🤖 *Core Commands:*',
-    '/help, /menu - Onyesha menu hii ya msaada',
-    '/ping - Angalia kama bot iko hai',
-    '/alive - Angalia mfumo na hali ya bot',
-    '/owner - Mawasiliano ya mmiliki wa bot',
-    '/update - Vuta upya msimbo kutoka GitHub (Owner tu)',
+    '🤖 *CORE COMMANDS*',
+    '┣ /menu , /help ➔ Main menu list',
+    '┣ /ping ➔ Test bot latency',
+    '┣ /alive ➔ Check system status',
+    '┣ /owner ➔ Contact developer info',
+    '┗ /update ➔ Pull code from GitHub (Owner)',
     '',
-    '🎵 *Media Commands:*',
-    '/play <jina la wimbo> - Tafuta na upakue Audio kutoka YT',
-    '/video <jina la video> - Tafuta na upakue Video kutoka YT',
-    '/stickertelegram <link> - Pata maelezo ya sticker pack',
+    '🎵 *MEDIA & AUTOMATION*',
+    '┣ /play `<song name>` ➔ Download YT Audio',
+    '┣ /video `<video name>` ➔ Download YT Video',
+    '┣ /shazam ➔ Identify song from replied audio/video',
+    '┗ /stickertelegram `<link>` ➔ Fetch sticker pack info',
+    '',
+    '⏳ _Powered by Mickey Developer_'
   ].join('\n');
 }
 
@@ -159,18 +168,16 @@ function isTelegramAuthorized(chatId) {
   return false;
 }
 
-// FIXED: Yeyote sasa anaweza kutumia command ya pair mradi ana code sahihi
+// FIXED: Yeyote sasa anaweza kutumia command ya pair kwa kutumia muundo na index ya system config
 function canPair(chatId, code) {
   const inputCode = String(code || '').trim();
   const ownerId = String(settings.telegram?.ownerId || '').trim();
   const ownerNumber = String(settings.ownerNumber || '').replace(/\D/g, '').trim();
   const pairCode = String(settings.telegram?.pairCode || '').trim();
 
-  // Kama ni owner chat, pair moja kwa moja
   if (ownerId && String(chatId) === ownerId) return true;
   if (!inputCode) return false;
   
-  // Mtu yeyote akipatia pairCode au ownerNumber, anaruhusiwa
   if (pairCode && inputCode === pairCode) return true;
   if (ownerNumber && inputCode === ownerNumber) return true;
 
@@ -193,6 +200,22 @@ async function sendTelegramMessage(chatId, text, extra = {}) {
   }
 }
 
+// Boresho: Inatuma Thumbnail ya video kwanza
+async function sendTelegramPhoto(chatId, photoUrl, caption = '') {
+  const token = settings.telegram?.botToken?.trim();
+  if (!token || !chatId) return;
+  try {
+    await axios.post(`${TELEGRAM_BASE_URL(token)}/sendPhoto`, {
+      chat_id: String(chatId),
+      photo: photoUrl,
+      caption: caption,
+      parse_mode: 'Markdown'
+    });
+  } catch (error) {
+    console.error('Telegram sendPhoto failed:', error?.response?.data || error.message);
+  }
+}
+
 async function sendTelegramMedia(chatId, type, url, caption = '') {
   const token = settings.telegram?.botToken?.trim();
   if (!token || !chatId) return;
@@ -206,7 +229,7 @@ async function sendTelegramMedia(chatId, type, url, caption = '') {
     });
   } catch (error) {
     console.error(`Telegram ${endpoint} failed:`, error?.response?.data || error.message);
-    await sendTelegramMessage(chatId, `❌ Kushindwa kutuma ${type}. Kiungo kimezuiliwa, kimeharibika au faili ni kubwa sana.`);
+    await sendTelegramMessage(chatId, `❌ Kushindwa kutuma ${type}. Faili limezuiwa au ni kubwa mno.`);
   }
 }
 
@@ -249,13 +272,126 @@ async function handleUpdateCommand(chatId, isActiveOwner) {
   }
 }
 
+// 🎧 SHAZAM TELEGRAM COMMAND IMPLEMENTATION
+async function handleShazamCommand(chatId, repliedMessage) {
+    const token = settings.telegram?.botToken?.trim();
+    const media = repliedMessage.audio || repliedMessage.video || repliedMessage.voice;
+    
+    if (!media || !media.file_id) {
+        return sendTelegramMessage(chatId, '❌ *Tafadhali reply ujumbe wa audio au video kwa kutumia /shazam*');
+    }
+
+    if (!settings.acrcloud || !settings.acrcloud.access_key) {
+        return sendTelegramMessage(chatId, '❌ *ACRCloud API haijawekwa kwenye settings.js!*');
+    }
+
+    await sendTelegramMessage(chatId, '🔍 *Inatambua wimbo, subiri kidogo...*');
+
+    try {
+        // Pata file path kutoka Telegram Seva
+        const fileRes = await axios.get(`${TELEGRAM_BASE_URL(token)}/getFile?file_id=${media.file_id}`);
+        if (!fileRes.data?.ok) throw new Error("Mchakato wa kupata faili umefeli.");
+        
+        const filePath = fileRes.data.result.file_path;
+        const fileUrl = `https://api.telegram.org/file/bot${token}/${filePath}`;
+
+        // Download faili kwenda kwenye buffer ya ndani
+        const responseBuffer = await axios.get(fileUrl, { responseType: 'arraybuffer' });
+        const mediaBuffer = Buffer.from(responseBuffer.data);
+
+        const tempDir = path.join(process.cwd(), 'tmp');
+        if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+
+        const tempInput = path.join(tempDir, `shazam_in_${Date.now()}`);
+        const tempAudio = path.join(tempDir, `shazam_out_${Date.now()}.wav`);
+
+        fs.writeFileSync(tempInput, mediaBuffer);
+
+        try {
+            await execAsync(`ffmpeg -i "${tempInput}" -vn -acodec pcm_s16le -ar 44100 -ac 2 -t 15 "${tempAudio}" -y`);
+        } catch (e) {
+            fs.copySync(tempInput, tempAudio);
+        }
+
+        const acrcloud = require('acrcloud');
+        const acr = new acrcloud({
+            host: settings.acrcloud.host,
+            access_key: settings.acrcloud.access_key,
+            access_secret: settings.acrcloud.access_secret
+        });
+
+        const result = await acr.identify(fs.readFileSync(tempAudio));
+
+        if (fs.existsSync(tempInput)) fs.unlinkSync(tempInput);
+        if (fs.existsSync(tempAudio)) fs.unlinkSync(tempAudio);
+
+        if (result.status?.code === 0 && result.metadata?.music?.length > 0) {
+            const song = result.metadata.music[0];
+            const title = song.title || 'Unknown';
+            const artist = song.artists?.[0]?.name || 'Unknown';
+
+            const caption = `🎵 *SHAZAM IDENTIFIED!*\n` +
+                `━━━━━━━━━━━━━━━━━━━━━━\n` +
+                `📌 *Title:* ${title}\n` +
+                `👤 *Artist:* ${artist}\n` +
+                `💿 *Album:* ${song.album?.name || 'N/A'}\n` +
+                `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+                `💡 _Unaweza kudownload kwa kuandika:_ \n`/play ${title} ${artist}`;
+
+            // Tuma ujumbe ukiwa na Inline Button ya Telegram kwa urahisi
+            await sendTelegramMessage(chatId, caption, {
+                reply_markup: {
+                    inline_keyboard: [[
+                        { text: `📥 Download MP3`, callback_data: `play_${title}` }
+                    ]]
+                }
+            });
+        } else {
+            await sendTelegramMessage(chatId, '❌ *Wimbo haukutambulika.* Jaribu kipande chenye sauti safi.');
+        }
+    } catch (err) {
+        console.error("SHAZAM ERROR:", err);
+        await sendTelegramMessage(chatId, '❌ Mfumo wa Shazam umepata tatizo la kiufundi.');
+    }
+}
+
 async function handleUpdate(update) {
+  // Kushughulikia inline button click (Callback Query)
+  if (update.callback_query) {
+      const callback = update.callback_query;
+      const chatId = callback.message.chat.id;
+      const data = callback.data;
+      if (data.startsWith('play_')) {
+          const trackTitle = data.replace('play_', '');
+          await sendTelegramMessage(chatId, `🎵 *Inasindika amri ya kupakua:* _${trackTitle}_...`);
+          // Trigger automatic flow
+          const searchResult = await yts(trackTitle);
+          const video = searchResult.videos[0];
+          if (video) {
+              await sendTelegramPhoto(chatId, video.thumbnail, `🎵 *${video.title}*\n📥 *Inapakua Audio...*`);
+              const audioUrl = await getYoutubeMp3(video.url);
+              await sendTelegramMedia(chatId, 'audio', audioUrl, `🎵 *Title:* ${video.title}`);
+          }
+      }
+      return;
+  }
+
   const message = update.message || update.edited_message;
-  if (!message || !message.text) return;
+  if (!message) return;
 
   const chatId = message.chat?.id;
   const sender = message.from;
   const rawText = String(message.text || '').trim();
+
+  // Mfumo wa Shazam unakagua kama kuna reply
+  if (rawText.toLowerCase().startsWith('/shazam') || rawText.toLowerCase().startsWith('.shazam')) {
+      if (message.reply_to_message) {
+          await handleShazamCommand(chatId, message.reply_to_message);
+      } else {
+          await sendTelegramMessage(chatId, '❌ *Tafadhali reply kwenye audio/video kisha uandike /shazam*');
+      }
+      return;
+  }
 
   if (!rawText.startsWith('/') && !rawText.startsWith('.')) return;
 
@@ -275,14 +411,14 @@ async function handleUpdate(update) {
 
   if (commandText === 'pair') {
     if (isChatAllowed(chatId) || isActiveOwner) {
-      return sendTelegramMessage(chatId, '✅ Chat hii tayari imeshaunganishwa (Paired).');
+      return sendTelegramMessage(chatId, '✅ Chat hii tayari imeshaunganishwa (Paired) na Mfumo wa Index.');
     }
     const code = args[0] || '';
     if (!canPair(chatId, code)) {
-      return sendTelegramMessage(chatId, '❌ Pairing imekataa. Tumia code au namba sahihi ya mmiliki.');
+      return sendTelegramMessage(chatId, '❌ Pairing imekataa. Tumia code sahihi au namba ya mmiliki kutoka kwenye Index.');
     }
     addAllowedChat(chatId);
-    return sendTelegramMessage(chatId, '✅ Bot imepairishwa kikamilifu kwenye chat hii! Tumia /menu kuanza.');
+    return sendTelegramMessage(chatId, '✅ Bot imepairishwa kikamilifu kwenye index ya chat hii! Tumia /menu kuanza.');
   }
 
   if (commandText === 'unpair') {
@@ -313,7 +449,7 @@ async function handleUpdate(update) {
     case 'stickertelegram':
       return handleStickerTelegram(chatId, args);
 
-    // FIXED: Play command ikiwa na JSON Fallback System thabiti
+    // FIXED: Play command inatuma THUMBNAIL kwanza kabla ya audio!
     case 'play': {
       if (!fullArgs) return sendTelegramMessage(chatId, '⚠️ Tafadhali weka jina la wimbo! Mfano: `/play Jux Enjoy`');
       await sendTelegramMessage(chatId, `🎵 *Inatafuta wimbo:* _${fullArgs}_...`);
@@ -323,18 +459,19 @@ async function handleUpdate(update) {
         const video = searchResult.videos[0];
         if (!video) return sendTelegramMessage(chatId, '❌ Wimbo haukupatikana YouTube.');
 
-        await sendTelegramMessage(chatId, `⏳ *Inapakua Audio:* _${video.title}_...`);
-        const audioUrl = await getYoutubeMp3(video.url);
+        // Tuma Thumbnail kwanza kabisa
+        await sendTelegramPhoto(chatId, video.thumbnail, `🎵 *${video.title}*\n⏱️ Muda: ${video.timestamp}\n📥 *Inapakua Audio hivi sasa...*`);
 
+        const audioUrl = await getYoutubeMp3(video.url);
         await sendTelegramMedia(chatId, 'audio', audioUrl, `🎵 *Title:* ${video.title}\n🔗 *Link:* ${video.url}\n\n> *Mickey Developer* ⚡`);
       } catch (err) {
         console.error(err);
-        await sendTelegramMessage(chatId, '❌ Ilitokea hitilafu wakati wa kupakua audio. API zote zimegoma au faili limezuiwa.');
+        await sendTelegramMessage(chatId, '❌ Ilitokea hitilafu wakati wa kupakua audio.');
       }
       return;
     }
 
-    // FIXED: Video command ikiwa na JSON Fallback System thabiti
+    // FIXED: Video command inatuma THUMBNAIL kwanza kabla ya video!
     case 'video': {
       if (!fullArgs) return sendTelegramMessage(chatId, '⚠️ Tafadhali weka jina la video! Mfano: `/video Marioo Mi Amor`');
       await sendTelegramMessage(chatId, `📹 *Inatafuta video:* _${fullArgs}_...`);
@@ -344,13 +481,14 @@ async function handleUpdate(update) {
         const video = searchResult.videos[0];
         if (!video) return sendTelegramMessage(chatId, '❌ Video haikutumbukia kwenye utafutaji.');
 
-        await sendTelegramMessage(chatId, `⏳ *Inapakua Video:* _${video.title}_...`);
-        const videoUrl = await getYoutubeMp4(video.url);
+        // Tuma Thumbnail kwanza kabisa
+        await sendTelegramPhoto(chatId, video.thumbnail, `🎥 *${video.title}*\n⏱️ Muda: ${video.timestamp}\n📥 *Inapakua Video hivi sasa...*`);
 
+        const videoUrl = await getYoutubeMp4(video.url);
         await sendTelegramMedia(chatId, 'video', videoUrl, `📹 *Title:* ${video.title}\n🔗 *Link:* ${video.url}\n\n> *Mickey Developer* ⚡`);
       } catch (err) {
         console.error(err);
-        await sendTelegramMessage(chatId, '❌ Imefeli kupata link ya video. Seva zote zimegoma au video ni kubwa mno kwa Telegram bot API.');
+        await sendTelegramMessage(chatId, '❌ Imefeli kupata link ya video kutoka kwenye seva.');
       }
       return;
     }
@@ -374,12 +512,12 @@ async function startTelegramBot() {
   try { await removeWebhookIfSet(token); } catch (e) {}
 
   let offset = 0;
-  console.log('✅ Telegram Bot Engine Imewashwa Vizuri (Mickey Developer).');
+  console.log('✅ Telegram Bot Engine Imewashwa Vizuri kwa Mfumo wa Index.');
 
   while (true) {
     try {
       const response = await axios.get(`${TELEGRAM_BASE_URL(token)}/getUpdates`, {
-        params: { offset: offset + 1, timeout: 30, allowed_updates: ['message', 'edited_message'] },
+        params: { offset: offset + 1, timeout: 30, allowed_updates: ['message', 'edited_message', 'callback_query'] },
         timeout: 60000
       });
 

@@ -340,7 +340,7 @@ async function handleShazamCommand(chatId, repliedMessage) {
 
 ━━━━━━━━━━━━━━━━━━
 `;
-                `💡 _Unaweza kudownload kwa kuandika:_ \n`/play ${title} ${artist}`;
+ `💡 _Unaweza kudownload kwa kuandika:_ \n`/play ${title} ${artist}`;
 
             // Tuma ujumbe ukiwa na Inline Button ya Telegram kwa urahisi
             await sendTelegramMessage(chatId, caption, {

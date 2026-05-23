@@ -11,7 +11,7 @@ const { sendInteractiveMessage } = require('gifted-btns');
 
 const menuCommand = async (sock, chatId, m) => {
     try {
-        const botName = 'MICKEY GLITCH';
+        const botName = '𝙱𝙸𝙶𝙼𝙰𝙽𝚓 GLITCH';
         const now = moment().tz('Africa/Dar_es_Salaam');
         const greet = now.hour() < 12 ? 'Asubuhi ☀️' : now.hour() < 18 ? 'Mchana 🌤️' : 'Jioni 🌙';
 

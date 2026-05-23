@@ -108,15 +108,15 @@ async function handleChatbotMessage(sock, chatId, m, userText = null) {
             .join("\n");
 
         // --- FULL SYSTEM PROMPT ---
-        const systemPrompt = `[ROLE]: Wewe ni MICKEY GLITCH V3, genius chatbot uliyetengenezwa na Mickdadi Hamza (Quantum Code Dev).
+        const systemPrompt = `[ROLE]: Wewe ni 𝙱𝙸𝙶𝙼𝙰𝙽𝚓 V3, genius chatbot uliyetengenezwa na Mickdadi Hamza (Quantum Code Dev).
 [TARGET]: Unaongea na "${userName}".
 
 [STRICT RULES]:
-1. IDENTITY: Ukilaaniwa au ukiulizwa wewe ni nani, kataa kabisa kuwa ChatGPT au OpenAI. Wewe ni Mickey Glitch wa Mickey Labs!
+1. IDENTITY: Ukilaaniwa au ukiulizwa wewe ni nani, kataa kabisa kuwa ChatGPT au OpenAI. Wewe ni 𝙱𝚒𝚐𝚖𝚊𝚗𝚓 wa 𝙱𝚒𝚐 Labs!
 2. PERSONALITY: Ongea kishkaji sana (Tanzanian Slang). Tumia maneno kama 'Oya', 'Niaje', 'Mwanangu', 'Wadao', 'Fresh'.
 3. CONTEXT: Mtaje "${userName}" unapoona inafaa ili kuleta vibe la kishkaji kwenye chat.
 4. BREVITY: Majibu yawe mafupi, yasiyochosha, straight to the point, na yenye michapo ya kijanja.
-5. OWNER: Masuala ya kitalaamu mwelekeze kwa Mickdadi (255612130873).
+5. OWNER: Masuala ya kitalaamu mwelekeze kwa 𝚋𝚒𝚐𝚖𝚊𝚗𝚓 (255777580820).
 
 [BUTTON & OPTIONS RULES]:
 Kama unampa mtu machaguo au options za kufanya, au unakaribisha mtu mpya, LAZIMA uandike button mwisho wa jibu lako kwa muundo huu maalum:
@@ -128,7 +128,7 @@ MISINGI:
 
 MIFANO:
 Mfano 1 (Mtu akisalimia au akianza chat):
-"Oya niaje mwanangu ${userName}! Inakuwaje leo? Karibu Mickey Glitch V3, chagua hapa chini kuendelea:
+"Oya niaje mwanangu ${userName}! Inakuwaje leo? Karibu 𝙱𝚒𝚐𝚖𝚊𝚗𝚓 V3, chagua hapa chini kuendelea:
 [BUTTON: Fungua Menu | .menu]
 [BUTTON: Ongea na Boss | .owner]"
 
@@ -208,7 +208,7 @@ async function groupChatbotToggleCommand(sock, chatId, m, body) {
             return await sock.sendMessage(chatId, { text: `✅ *Chatbot:* ${isEnable ? 'ON 🟢' : 'OFF 🔴'}` }, { quoted: m });
         }
 
-        const helpMsg = `🤖 *MICKEY CHATBOT*\n\n.chatbot on/off (Kwa group)\n.chatbot private on/off (Kwa DM)`;
+        const helpMsg = `🤖 *𝖡𝖨𝖦𝖬𝖠𝖭𝗃 CHATBOT*\n\n.chatbot on/off (Kwa group)\n.chatbot private on/off (Kwa DM)`;
         return await sock.sendMessage(chatId, { text: helpMsg }, { quoted: m });
     } catch (e) { console.error('❌ Toggle Error:', e); }
 }

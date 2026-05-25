@@ -1,46 +1,64 @@
 const { exec } = require('child_process');
-const fs = require('fs-extra'); 
+const fs = require('fs-extra');
 const path = require('path');
 const axios = require('axios');
 const chalk = require('chalk');
 
 /**
- * @project: MICKEY GLITCH
- * @command: UPDATE (Fixed Edition)
+ * @project: MICKEY GLITCH PREMIUM BOT
+ * @command: UPDATE SYSTEM
+ * @repo: https://github.com/brightsonnjegite-sudo/BIGMANJ-XMD
  */
 
-async function updateCommand(sock, chatId, message, zipUrl) {
+async function updateCommand(sock, chatId, message, customUrl = null) {
     try {
         const isOwner = message.key.fromMe;
-        if (!isOwner) return;
+        if (!isOwner) {
+            await sock.sendMessage(chatId, { text: "❌ Samahani, ni owner pekee anayeruhusiwa kutumia hii command!" });
+            return;
+        }
 
-        await sock.sendMessage(chatId, { react: { text: '⏳', key: message.key } });
+        await sock.sendMessage(chatId, { react: { text: '🔄', key: message.key } });
 
-        // --- 🛡️ FIXED URL LOGIC ---
-        const repoUrl = "https://github.com/brightsonnjegite-sudo/BIGMANJ-XMD";
+        // --- REPO YAKO HALISI ---
+        const mainRepo = "https://github.com/brightsonnjegite-sudo/BIGMANJ-XMD";
         
-        // Hapa tunahakikisha kuwa lazima kuwe na URL, vinginevyo inatumia default
-        let updateZipUrl = zipUrl && zipUrl.startsWith('http') 
-            ? zipUrl.trim() 
-            : `${repoUrl}/archive/refs/heads/main.zip`;
+        let updateZipUrl;
+        
+        if (customUrl && customUrl.startsWith('http')) {
+            updateZipUrl = customUrl.trim();
+        } else if (customUrl === 'branch' && customUrl.split(' ')[1]) {
+            // Kwa branch tofauti: .update branch main
+            const branch = customUrl.split(' ')[1] || 'main';
+            updateZipUrl = `${mainRepo}/archive/refs/heads/${branch}.zip`;
+        } else {
+            // Default: main branch
+            updateZipUrl = `${mainRepo}/archive/refs/heads/main.zip`;
+        }
 
-        console.log(chalk.blue(`[Update] Link inayotumika: ${updateZipUrl}`));
+        console.log(chalk.blue(`[Mickey Update] Downloading from: ${updateZipUrl}`));
 
         const tmpDir = path.join(process.cwd(), 'temp_update');
-        const zipPath = path.join(tmpDir, 'bot_update.zip');
+        const zipPath = path.join(tmpDir, 'mickey_update.zip');
         const extractPath = path.join(tmpDir, 'extracted');
 
+        // Clean previous temp
         if (fs.existsSync(tmpDir)) fs.removeSync(tmpDir);
         fs.ensureDirSync(tmpDir);
 
-        // --- 🛡️ AXIOS WITH ERROR HANDLING ---
-        const response = await axios({ 
-            method: 'get', 
-            url: updateZipUrl, 
+        await sock.sendMessage(chatId, { text: "📥 *Ina-download update kutoka Mickey Glitch Repo...*" });
+
+        // Download with better error handling
+        const response = await axios({
+            method: 'get',
+            url: updateZipUrl,
             responseType: 'stream',
-            timeout: 60000 
+            timeout: 90000,
+            headers: {
+                'User-Agent': 'Mickey-Glitch-Bot/3.0'
+            }
         }).catch(err => {
-            throw new Error(`Imeshindwa kupata file: ${err.message}`);
+            throw new Error(`Download failed: ${err.message}`);
         });
 
         const writer = fs.createWriteStream(zipPath);
@@ -51,43 +69,175 @@ async function updateCommand(sock, chatId, message, zipUrl) {
             writer.on('error', reject);
         });
 
-        // Extraction
-        await sock.sendMessage(chatId, { text: "📦 *Mchakato wa ku-update umeanza...*" });
+        await sock.sendMessage(chatId, { text: "📦 *Kuna-extract files mpya...*" });
 
-        exec(`unzip -o ${zipPath} -d ${extractPath}`, (err) => {
+        // Extract using unzip
+        exec(`unzip -o ${zipPath} -d ${extractPath}`, async (err, stdout, stderr) => {
             if (err) {
-                console.log(chalk.red("Unzip failed!"));
-                return sock.sendMessage(chatId, { text: "❌ *Unzip Failed:* Hakikisha Panel yako inaruhusu amri ya unzip." });
-            }
-
-            const folders = fs.readdirSync(extractPath);
-            if (folders.length === 0) return;
-            
-            const rootFolder = path.join(extractPath, folders[0]); 
-            const ignore = ['node_modules', 'session', 'auth_info_baileys', '.git', 'settings.js', 'config.js', '.env'];
-
-            const files = fs.readdirSync(rootFolder);
-            for (const file of files) {
-                if (!ignore.includes(file)) {
-                    fs.copySync(path.join(rootFolder, file), path.join(process.cwd(), file), { overwrite: true });
+                console.log(chalk.red("Extraction failed:"), stderr);
+                
+                // Try using node.js extraction if unzip fails
+                await sock.sendMessage(chatId, { text: "⚠️ *Trying alternative extraction method...*" });
+                
+                const AdmZip = require('adm-zip');
+                try {
+                    const zip = new AdmZip(zipPath);
+                    zip.extractAllTo(extractPath, true);
+                } catch (zipErr) {
+                    await sock.sendMessage(chatId, { text: "❌ *Extraction Failed:* Hakikisha unzip ipo kwenye system.\nJaribu: `apt install unzip -y`" });
+                    fs.removeSync(tmpDir);
+                    return;
                 }
             }
 
-            fs.removeSync(tmpDir);
+            try {
+                const folders = fs.readdirSync(extractPath);
+                if (folders.length === 0) throw new Error("No files extracted");
 
-            sock.sendMessage(chatId, { text: "✅ *Update Imekamilika kwa mafanikio!*\n\nBot inajizima na kuwaka upya." });
-            console.log(chalk.green.bold('📢 UPDATE SUCCESSFUL!'));
+                // Find the root folder (BIGMANJ-XMD-main or similar)
+                let rootFolder = path.join(extractPath, folders[0]);
+                
+                // Handle nested folders
+                while (fs.readdirSync(rootFolder).length === 1 && 
+                       fs.statSync(path.join(rootFolder, fs.readdirSync(rootFolder)[0])).isDirectory()) {
+                    rootFolder = path.join(rootFolder, fs.readdirSync(rootFolder)[0]);
+                }
 
-            setTimeout(() => {
-                process.exit(1); 
-            }, 3000);
+                // Files/folders to PROTECT (hazitabadilishwa)
+                const protectedItems = [
+                    'node_modules',
+                    'session',
+                    'auth_info_baileys',
+                    'sessions',
+                    '.git',
+                    '.env',
+                    'config.js',
+                    'settings.json',
+                    'database.json',
+                    'data/chatbot.json',
+                    'data/chatbot_memory.json',
+                    'data/user_prefs.json',
+                    'data/stats.json',
+                    'data/custom_responses.json',
+                    'data/reminders.json'
+                ];
+
+                await sock.sendMessage(chatId, { text: "📋 *Ina-copy files mpya (huku ikilinda data yako)...*" });
+
+                const files = fs.readdirSync(rootFolder);
+                let copiedCount = 0;
+                let skippedCount = 0;
+
+                for (const file of files) {
+                    const shouldProtect = protectedItems.some(protected => 
+                        file === protected || file.startsWith(protected + '/')
+                    );
+                    
+                    if (!shouldProtect && file !== 'BIGMANJ-XMD-main') {
+                        const source = path.join(rootFolder, file);
+                        const dest = path.join(process.cwd(), file);
+                        
+                        if (fs.existsSync(source)) {
+                            fs.copySync(source, dest, { overwrite: true });
+                            copiedCount++;
+                        }
+                    } else {
+                        skippedCount++;
+                    }
+                }
+
+                // Special handling for package.json - merge dependencies
+                const newPackagePath = path.join(rootFolder, 'package.json');
+                const currentPackagePath = path.join(process.cwd(), 'package.json');
+                
+                if (fs.existsSync(newPackagePath)) {
+                    const newPackage = require(newPackagePath);
+                    const currentPackage = require(currentPackagePath);
+                    
+                    // Keep current version but merge new scripts if needed
+                    if (newPackage.scripts && !currentPackage.scripts) {
+                        currentPackage.scripts = newPackage.scripts;
+                        fs.writeFileSync(currentPackagePath, JSON.stringify(currentPackage, null, 2));
+                    }
+                }
+
+                // Clean temp folder
+                fs.removeSync(tmpDir);
+
+                const successMsg = `✅ *UPDATE IMEKAMILIKA KWA MAFANIKIO!* 🎉
+
+📊 *Statistics:*
+├ 📁 Files zilizobadilishwa: ${copiedCount}
+├ 🔒 Files zilizolindwa: ${skippedCount}
+└ 🔄 Bot itaji-restart
+
+🔐 *Data iliyohifadhiwa:* Session, Memory, User Preferences, Stats zote ziko salama!
+
+⚠️ Bot ina-restart baada ya sekunde 5...
+
+*Mickey Glitch Premium Bot - Imeboreshwa!* 🚀`;
+
+                await sock.sendMessage(chatId, { text: successMsg });
+                console.log(chalk.green.bold('✅ MICKEY GLITCH UPDATE SUCCESSFUL!'));
+                console.log(chalk.yellow(`📁 ${copiedCount} files updated, ${skippedCount} files protected`));
+
+                // Graceful restart
+                setTimeout(() => {
+                    console.log(chalk.yellow('🔄 Restarting Mickey Glitch Bot...'));
+                    process.exit(0);
+                }, 5000);
+
+            } catch (copyErr) {
+                console.error(chalk.red("Copy error:"), copyErr);
+                await sock.sendMessage(chatId, { text: `❌ *Update Failed:* ${copyErr.message}\n\nTafadhali wasiliana na Mickeydeveloper.` });
+                fs.removeSync(tmpDir);
+            }
         });
 
     } catch (err) {
         console.error(chalk.red("Update Error:"), err.message);
-        // Hapa bot haitazima (crash), itatuma tu ujumbe wa kosa
-        await sock.sendMessage(chatId, { text: `❌ *Update Imefeli:* ${err.message}` }).catch(() => {});
+        await sock.sendMessage(chatId, { text: `❌ *Update Imefeli:* ${err.message}\n\nSababu inawezekana:\n• Repo iko private au haipatikani\n• Connection timeout\n• Hakuna unzip kwenye server\n\nTafadhali jaribu tena baadaye.` }).catch(() => {});
     }
 }
 
-module.exports = updateCommand;
+// Check version command
+async function checkVersion(sock, chatId, message) {
+    try {
+        const isOwner = message.key.fromMe;
+        if (!isOwner) return;
+
+        const packageJson = require(path.join(process.cwd(), 'package.json'));
+        const currentVersion = packageJson.version || '3.0.0';
+        
+        // Check latest commit from repo
+        try {
+            const apiUrl = "https://api.github.com/repos/brightsonnjegite-sudo/BIGMANJ-XMD/commits/main";
+            const response = await axios.get(apiUrl, { timeout: 5000 });
+            const latestCommit = response.data;
+            const lastUpdate = new Date(latestCommit.commit.author.date).toLocaleString();
+            
+            const versionMsg = `🤖 *MICKEY GLITCH PREMIUM BOT*
+
+📌 *Current Version:* ${currentVersion}
+📦 *Repository:* BIGMANJ-XMD
+🕐 *Latest Update:* ${lastUpdate}
+📝 *Latest Commit:* ${latestCommit.commit.message.slice(0, 50)}...
+
+💡 *Commands:*
+├ .update - Update to latest version
+├ .update branch [name] - Update from specific branch
+├ .version - Check this status
+└ .update [url] - Update from custom URL
+
+✅ *Bot iko running smoothly!* 🚀`;
+            
+            await sock.sendMessage(chatId, { text: versionMsg });
+        } catch (err) {
+            await sock.sendMessage(chatId, { text: `🤖 *MICKEY GLITCH PREMIUM BOT*\n📌 Version: ${currentVersion}\n⚠️ Unable to check remote updates` });
+        }
+    } catch (err) {
+        console.error("Version check error:", err);
+    }
+}
+
+module.exports = { updateCommand, checkVersion };

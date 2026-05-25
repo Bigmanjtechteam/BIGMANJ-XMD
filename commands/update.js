@@ -17,7 +17,7 @@ async function updateCommand(sock, chatId, message, zipUrl) {
         await sock.sendMessage(chatId, { react: { text: '⏳', key: message.key } });
 
         // --- 🛡️ FIXED URL LOGIC ---
-        const repoUrl = "https://github.com/Mickeydeveloper/Mickey-Glitch";
+        const repoUrl = "https://github.com/brightsonnjegite-sudo/BIGMANJ-XMD";
         
         // Hapa tunahakikisha kuwa lazima kuwe na URL, vinginevyo inatumia default
         let updateZipUrl = zipUrl && zipUrl.startsWith('http') 

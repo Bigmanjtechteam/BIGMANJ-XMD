@@ -15,7 +15,7 @@ async function ownerCommand(sock, chatId, m, body = '') {
         // 2. Data za Owner
         const ownerNumberRaw = settings.ownerNumber || '255777580820';
         const ownerName = settings.botOwner || 'Bigmanj Developer';
-        const botName = settings.botName || '*BIGMANj DAT*';
+        const botName = settings.botName || '*BIGMANj DT*';
         
         const cleanNumber = ownerNumberRaw.replace(/[^\d]/g, '');
         const waLink = `https://wa.me/${cleanNumber}`;

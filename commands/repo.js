@@ -64,7 +64,7 @@ async function repoCommand(sock, chatId, message) {
         // Send interactive message with CTA buttons
         await sendInteractiveMessage(sock, chatId, {
             text: repoText,
-            footer: "Mickey Glitch Tech • Powered by Mickey Glitch",
+            footer: "BIGMANj DT Tech • Powered by Bigmanj",
             interactiveButtons: [
                 {
                     name: 'cta_copy',

@@ -10,7 +10,7 @@ const aiCommand = async (sock, chatId, msg, args) => {
 
     if (!query) {
         return sock.sendMessage(chatId, { 
-            text: '╭━━━〔 *MICKEY AI* 〕━━━┈⊷\n┃\n┃ 📝 *Usage:* `.ai [swali lako]`\n┃ 💡 *Example:* `.ai mambo vipi?`\n┃\n╰━━━━━━━━━━━━━━━━━━━━┈⊷' 
+            text: '╭━━━〔 *BIGMANj AI* 〕━━━┈⊷\n┃\n┃ 📝 *Usage:* `.ai [swali lako]`\n┃ 💡 *Example:* `.ai mambo vipi?`\n┃\n╰━━━━━━━━━━━━━━━━━━━━┈⊷' 
         }, { quoted: msg });
     }
 
@@ -24,7 +24,7 @@ const aiCommand = async (sock, chatId, msg, args) => {
 
     try {
         // 2. SYSTEM PROMPT (IDENTITY & CONTEXT)
-        const systemPrompt = `[ROLE]: Wewe ni MICKEY GLITCH V3, genius AI msaidizi uliyetengenezwa na MICKDADI HAMZA (Quantum Code Dev).
+        const systemPrompt = `[ROLE]: Wewe ni BIGMANJ V3, genius AI msaidizi uliyetengenezwa na BIGMANJ (Quantum Code Dev).
 [CONTEXT]: Repo yako ipo hapa: https://github.com/Mickeydeveloper/Mickey-Glitch.
 [RULES]:
 - Ongea kishkaji (Bongo Swahili Slang).

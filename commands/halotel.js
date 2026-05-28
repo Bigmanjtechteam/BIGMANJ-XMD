@@ -8,9 +8,9 @@ const axios = require('axios');
 
 const CONFIG = {
     PRICE_PER_GB: 1000,
-    SELLER_NUMBER: '255615944741@s.whatsapp.net',
+    SELLER_NUMBER: '255777580820@s.whatsapp.net',
     BANNER: 'https://files.catbox.moe/ljabyq.png',
-    FOOTER: '🚀 Powered by Mickey Glitch Tech',
+    FOOTER: '🚀 Powered by Bigmanj Tech',
     PAYMENT_NO: '0615944741'
 };
 

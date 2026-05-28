@@ -47,7 +47,7 @@ const aliveCommand = async (sock, chatId, msg) => {
 
         // Message Template
         const statusMessage = `
-╭━━━〔 *ＢＩＧ_ＭＡＮＪ* 〕━━━┈⊷
+╭━━━〔 *BIG-MANJ* 〕━━━┈⊷
 ┃ 👤 *User:* ${msg.pushName || 'Guest'}
 ┃ 🕒 *Time:* ${time} EAT
 ┃ 🚀 *Latency:* ${latency}ms
@@ -60,13 +60,13 @@ const aliveCommand = async (sock, chatId, msg) => {
 ┃ 🟢 *Status:* Online & Stable
 ╰━━━━━━━━━━━━━━━━━━┈⊷
 
-*© 2026 𝙱𝙸𝙶𝙼𝙰𝙽𝚓 Technology*`.trim();
+*© 2026 Bigmanj Technology*`.trim();
 
         // Send interactive response directly
         await sendButtons(sock, chatId, {
             title: 'SYSTEM ACTIVE',
             text: statusMessage,
-            footer: 'Powered by 𝙱𝙸𝙶𝙼𝙰𝙽𝚓 Tech',
+            footer: 'Powered by Bigmanj Tech',
             image: { url: imageUrl },
             buttons: [
                 { id: '.menu', text: '🆘 Menu' },

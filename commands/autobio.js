@@ -54,7 +54,7 @@ function buildAutoBio() {
   const ownerNum = (settings.ownerNumber || '').replace(/[^0-9]/g, '');
   const ownerDisplay = ownerNum ? `Owner: +${ownerNum}` : 'Owner';
   const now = new Date().toLocaleString();
-  return `✨ Powered by Mickey Bot\n⏰ ${now}\n💯 ${ownerDisplay}`;
+  return `✨ Powered by BIGMANj BOT\n⏰ ${now}\n💯 ${ownerDisplay}`;
 }
 
 // Apply autobio if enabled for this bot instance

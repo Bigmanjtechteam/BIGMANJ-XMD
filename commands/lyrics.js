@@ -1,4 +1,4 @@
-const fetch = require('node-fetch');
+const lyricsFinder = require('lyrics-finder');
 
 async function lyricsCommand(sock, chatId, songTitle, message) {
     if (!songTitle) {
@@ -8,32 +8,32 @@ async function lyricsCommand(sock, chatId, songTitle, message) {
         return;
     }
 
-    // 🔄 Onyesha reaction ya "🔍" kwenye ujumbe wa mtumiaji (kuonesha inatafuta)
+    // Onyesha kuwa inatafuta
     await sock.sendMessage(chatId, { react: { text: '🔍', key: message.key } }).catch(() => {});
-
-    // ✍️ Onyesha kuwa bot inaandika (composing)
     await sock.sendPresenceUpdate('composing', chatId).catch(() => {});
 
     try {
-        // API ya PopCat.xyz (huru, hakuna API key required)
-        const apiUrl = `https://api.popcat.xyz/lyrics?song=${encodeURIComponent(songTitle)}`;
-        const response = await fetch(apiUrl);
-        const data = await response.json();
+        // Tafuta nyimbo - inaweza kuchukua jina la wimbo pekee
+        let lyrics = await lyricsFinder(songTitle);
+        
+        // Ikiwa haipatikani, jaribu kugawa kwa msanii na wimbo (hiari)
+        if (!lyrics) {
+            // Jaribu kugawa kwa sehemu mbili (msanii na wimbo)
+            const parts = songTitle.split(' ');
+            if (parts.length >= 2) {
+                const artist = parts.slice(0, -1).join(' ');
+                const title = parts[parts.length - 1];
+                lyrics = await lyricsFinder(artist, title);
+            }
+        }
 
-        // Kama hakuna matokeo au kuna kosa
-        if (!data || data.error || !data.lyrics) {
-            // Badilisha reaction kuwa ❌
+        if (!lyrics) {
             await sock.sendMessage(chatId, { react: { text: '❌', key: message.key } }).catch(() => {});
             await sock.sendMessage(chatId, {
-                text: `❌ *Nyimbo "${songTitle}" haikupatikana.*\n💡 Jaribu kuandika jina kamili la wimbo na msanii, mfano:\n.lyric Mwamba Mbosso\n.lyric Eminem Rap God`
+                text: `❌ *Nyimbo "${songTitle}" haikupatikana.*\n💡 Jaribu kuandika jina kamili la wimbo na msanii, mfano:\n.lyric Mwamba Mbosso\n.lyric Eminem Rap God\n.lyric Dior Pop Smoke`
             }, { quoted: message });
             return;
         }
-
-        // Pata jina la wimbo na msanii
-        const title = data.title || songTitle;
-        const artist = data.artist || 'Msanii asiyejulikana';
-        let lyrics = data.lyrics;
 
         // Kata ikiwa nyimbo ni ndefu (WhatsApp inaruhusu ~4096 herufi)
         const MAX_LENGTH = 4000;
@@ -41,17 +41,11 @@ async function lyricsCommand(sock, chatId, songTitle, message) {
             lyrics = lyrics.slice(0, MAX_LENGTH - 50) + '\n\n... (nyimbo imekatwa kwa sababu ni ndefu sana)';
         }
 
-        const result = `🎵 *${title}* - ${artist}\n\n${lyrics}`;
-        
-        // Badilisha reaction kuwa ✅ (imefaulu)
         await sock.sendMessage(chatId, { react: { text: '✅', key: message.key } }).catch(() => {});
-        
-        // Tuma nyimbo
-        await sock.sendMessage(chatId, { text: result }, { quoted: message });
+        await sock.sendMessage(chatId, { text: lyrics }, { quoted: message });
 
     } catch (error) {
         console.error('❌ Hitilafu ya kutafuta nyimbo:', error);
-        // Reaction ya ❌ kwa kosa
         await sock.sendMessage(chatId, { react: { text: '❌', key: message.key } }).catch(() => {});
         await sock.sendMessage(chatId, {
             text: '❌ *Imeshindwa kutafuta nyimbo.* Jaribu tena baadaye. (API inaweza kuwa na shida)'

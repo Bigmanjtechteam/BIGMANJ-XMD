@@ -65,7 +65,7 @@ async function halotelCommand(sock, chatId, m, body = '') {
             ];
 
             return await sendInteractiveMessage(sock, chatId, {
-                text: `✨ *MICKEY BIZ - ODA YAKO*\n\n${aiInstruction}\n\n📊 *DATA:* ${gbValue}GB\n💰 *BEI:* TSh ${totalPrice.toLocaleString()}\n📌 *MTANDAO:* Halotel\n\nUkishalipa, tuma screenshot hapa chap! 🚀`,
+                text: `✨ *BIGMANj BZNESS - ODA YAKO*\n\n${aiInstruction}\n\n📊 *DATA:* ${gbValue}GB\n💰 *BEI:* TSh ${totalPrice.toLocaleString()}\n📌 *MTANDAO:* Halotel\n\nUkishalipa, tuma screenshot hapa chap! 🚀`,
                 footer: CONFIG.FOOTER,
                 interactiveButtons: paymentButtons
             }, { quoted: m });

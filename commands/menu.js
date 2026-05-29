@@ -4,14 +4,14 @@ const path = require('path');
 const { sendInteractiveMessage } = require('gifted-btns');
 
 /**
- * @project: 𝙱𝙸𝙶𝙼𝙰𝙽𝚓 𝙶𝙻𝙸𝚃𝙲𝙷 V3.0.5
+ * @project: 𝗕𝗜𝗚𝗠𝗔𝗡𝗝 V3.0.5
  * @author: Quantum Base Developer (TZ)
  * @description: Enhanced Menu - Manual command list grouped by categories
  */
 
 const menuCommand = async (sock, chatId, m) => {
     try {
-        const botName = '*BIGMANj DT*';
+        const botName = '𝗕𝗜𝗚𝗠𝗔𝗡𝗝•𝗗𝗧';
         const now = moment().tz('Africa/Dar_es_Salaam');
         const greet = now.hour() < 12 ? 'Asubuhi ☀️' : now.hour() < 18 ? 'Mchana 🌤️' : 'Jioni 🌙';
 

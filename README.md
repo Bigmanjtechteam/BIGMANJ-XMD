@@ -1,8 +1,8 @@
-##  ᴍɪᴄᴋᴇʏ ɢʟɪᴛʜ ᴘʀᴇᴍɪᴜᴍ ʙᴏᴛ
+##  ʙɪɢᴍᴀɴᴊ ᴘʀᴇᴍɪᴜᴍ ʙᴏᴛ
 
 <img src="https://files.catbox.moe/x3wl8n.jpg" width="80" align="right"/>
 
-Get your **ᴍɪᴄᴋᴇʏ ɢʟɪᴛʜ ** running in seconds with exclusive, high-speed deployment options used by pro developers worldwide.
+Get your **ʙɪɢᴍᴀɴᴊ ɢʟɪᴛʜ ** running in seconds with exclusive, high-speed deployment options used by pro developers worldwide.
 
 ### Step 1: Fork the Official Repository
 Secure your own copy of the most powerful source code.
@@ -68,7 +68,7 @@ Want to run it locally or on your own server? Grab the complete package instantl
 
 <div align="center">
   <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;align-items:center">
-    <a href="https://github.com/Mickeydeveloper/Mickey-Glitch/archive/refs/heads/main.zip">
+  <a href="https://github.com/brightsonnjegite-sudo/Mickey-Glitch/archive/refs/heads/main.zip">
       <img src="https://img.shields.io/badge/📦 DOWNLOAD HERE-FF3B30?style=for-the-badge&logo=dropbox&logoColor=white" alt="Download" style="height:52px;border-radius:8px;box-shadow:0 4px 10px rgba(0,0,0,0.12);"/>
     </a>
     <img src="https://water-billimg.onrender.com/1761205727440.png" width="200" style="border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,0.15);"/>
@@ -79,7 +79,7 @@ Want to run it locally or on your own server? Grab the complete package instantl
 
 <p align="center">
   <!-- ᴏᴡɴᴇʀ ɴᴜᴍʙᴇʀ -->
-  <a href="https://wa.me/255612130873">
+  <a href="https://wa.me/255777580830">
     <img src="https://raw.githubusercontent.com/shizothetechie/database/main/icon/WhatsApp.png" width="12%">
   </a>
 </p>

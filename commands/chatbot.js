@@ -3,15 +3,13 @@ const path = require('path');
 
 // ========== HARDCODED OWNER NUMBERS ==========
 const OWNER_NUMBERS = [
-    '255777580820@s.whatsapp.net',   // Your owner number
+    '255777580820@s.whatsapp.net',
 ];
 // =============================================
 
-// Paths for storing data
 const STATE_PATH = path.join(__dirname, '..', 'data', 'chatbot.json');
 const MEMORY_PATH = path.join(__dirname, '..', 'data', 'chatbot_memory.json');
 
-// ---------- Helper functions ----------
 function loadState() {
     try {
         if (!fs.existsSync(STATE_PATH)) return { perGroup: {}, private: false };
@@ -50,7 +48,6 @@ function isOwner(senderId) {
     return OWNER_NUMBERS.includes(senderId);
 }
 
-// ---------- Detect media type ----------
 function detectMediaAndText(m) {
     const msg = m.message;
     if (!msg) return { type: 'none', text: '', caption: '' };
@@ -86,7 +83,6 @@ function detectMediaAndText(m) {
     return { type: 'none', text: '', caption: '' };
 }
 
-// ---------- Free AI API ----------
 async function getAIReply(prompt) {
     try {
         const url = `https://api.yupra.my.id/api/ai/gpt5?text=${encodeURIComponent(prompt)}`;
@@ -99,7 +95,6 @@ async function getAIReply(prompt) {
     }
 }
 
-// ---------- Main message handler ----------
 async function handleChatbotMessage(sock, chatId, m, userText = null) {
     try {
         if (!chatId || m.key?.fromMe) return;
@@ -176,7 +171,6 @@ async function handleChatbotMessage(sock, chatId, m, userText = null) {
     }
 }
 
-// ---------- .bigmanj command handler (owner only) ----------
 async function bigmanjToggleCommand(sock, chatId, m, body) {
     try {
         const senderId = m.key.participant || m.key.remoteJid;

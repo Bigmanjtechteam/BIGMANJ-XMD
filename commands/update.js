@@ -178,7 +178,7 @@ async function updateCommand(sock, chatId, message, customUrl = null) {
 
 ⚠️ Bot ina-restart baada ya sekunde 5...
 
-*Mickey Glitch Premium Bot - Imeboreshwa!* 🚀`;
+*BIGMANJ•DT Premium Bot - Imeboreshwa!* 🚀`;
 
                 await sock.sendMessage(chatId, { text: successMsg });
                 console.log(chalk.green.bold('✅ MICKEY GLITCH UPDATE SUCCESSFUL!'));

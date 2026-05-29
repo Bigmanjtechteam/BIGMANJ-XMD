@@ -13,7 +13,7 @@ const menuCommand = async (sock, chatId, m) => {
     try {
         const botName = '𝗕𝗜𝗚𝗠𝗔𝗡𝗝•𝗗𝗧';
         const now = moment().tz('Africa/Dar_es_Salaam');
-        const greet = nw.hour() < 12 ? 'Asubuhi ☀️' : now.hour() < 18 ? 'Mchana 🌤️' : 'Jioni 🌙';
+        const greet = now.hour() < 12 ? 'Asu ☀️' : now.hour() < 18 ? 'Mchana 🌤️' : 'Jioni 🌙';
 
         const MENU_CATEGORIES = [
             {

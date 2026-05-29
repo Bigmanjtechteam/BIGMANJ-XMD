@@ -92,7 +92,7 @@ async function shazamCommand(sock, chatId, message) {
             await sendButtons(sock, chatId, {
                 title: '🎧 SONG FINDER',
                 text: caption,
-                footer: 'BIGMANj•DATshazam bot',
+                footer: 'BIGMANj•DATshazambot',
                 buttons: [
                     { id: playCmd, text: '📥 ' + artist + ' - ' + title }
                 ]

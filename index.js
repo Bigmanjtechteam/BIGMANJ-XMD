@@ -1,5 +1,5 @@
 /**
- * MICKEY GLITCH - A WhatsApp Bot
+ * BIGMANJ•DT - A WhatsApp Bot
  * Clean & Optimized Version
  */
 
@@ -85,7 +85,7 @@ async function chooseStartupMode() {
         return settingMode;
     }
 
-    console.log(chalk.bgBlue.white("\n  🚀  MICKEY GLITCH STARTUP MODE  🚀  \n"));
+    console.log(chalk.bgBlue.white("\n  🚀  BIGMANJ•DT STARTUP MODE  🚀  \n"));
     console.log('Chagua mode ya bot:');
     console.log('  1) WhatsApp');
     console.log('  2) Telegram');
@@ -99,7 +99,7 @@ async function chooseStartupMode() {
 
 async function startMickeyBot() {
     try {
-        console.log('\n' + chalk.bgBlue.white("  🚀  STARTING MICKEY GLITCH BOT  🚀  ") + '\n');
+        console.log('\n' + chalk.bgBlue.white("  🚀  STARTING BIGMANJ•DT BOT  🚀  ") + '\n');
 
         const { version } = await fetchLatestBaileysVersion();
         console.log(chalk.cyan('📦 Baileys Version:'), chalk.green(version.join('.')));

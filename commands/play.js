@@ -2,129 +2,229 @@ const axios = require('axios');
 const yts = require('yt-search');
 
 const AXIOS_DEFAULTS = {
-    timeout: 30000, // Reduced timeout for faster response
+    timeout: 30000,
     headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'application/json, text/plain, */*'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     }
 };
 
-// Enhanced retry mechanism with exponential backoff
-async function tryRequest(getter, attempts = 3) {
+async function tryRequest(getter, attempts = 2) {
     let lastErr;
     for (let i = 1; i <= attempts; i++) {
         try {
             return await getter();
         } catch (err) {
             lastErr = err;
-            if (i < attempts) {
-                const delay = Math.min(1000 * Math.pow(2, i - 1), 5000); // Exponential backoff, max 5s
-                await new Promise(r => setTimeout(r, delay));
-            }
+            if (i < attempts) await new Promise(r => setTimeout(r, 2000));
         }
     }
     throw lastErr;
 }
 
-// Get MP3 from YouTube with enhanced error handling
-async function getYoutubeMp3(ytUrl) {
-    const apis = [
-        `https://apiskeith.top/download/audio?url=${encodeURIComponent(ytUrl)}`,
-        `https://eliteprotech-apis.zone.id/ytmp3?url=${encodeURIComponent(ytUrl)}`,
-        `https://apiskeith.top/download/ytv3?url=${encodeURIComponent(ytUrl)}`
-    ];
+// Function to get audio from Nayan AllDown API
+async function getAudioFromAllDown(ytUrl) {
+    let videoId = '';
+    if (ytUrl.includes('youtu.be/')) {
+        videoId = ytUrl.split('youtu.be/')[1].split('?')[0];
+    } else if (ytUrl.includes('youtube.com/watch')) {
+        const urlParams = new URLSearchParams(ytUrl.split('?')[1]);
+        videoId = urlParams.get('v');
+    }
 
-    for (const api of apis) {
-        try {
-            const res = await tryRequest(() => axios.get(api, AXIOS_DEFAULTS));
+    if (!videoId) throw new Error('Invalid URL');
 
-            // Handle different API response structures
-            let downloadUrl = null;
-            if (res.data?.status && res.data?.result) {
-                if (typeof res.data.result === 'string') {
-                    downloadUrl = res.data.result;
-                } else if (typeof res.data.result === 'object' && res.data.result?.url) {
-                    downloadUrl = res.data.result.url;
-                } else if (typeof res.data.result === 'object' && res.data.result?.download) {
-                    downloadUrl = res.data.result.download;
+    const apiUrl = `https://nayan-video-downloader.vercel.app/alldown?url=https://youtu.be/${videoId}`;
+
+    try {
+        const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
+
+        if (res.data?.status === true && res.data?.data) {
+            const data = res.data.data;
+            const videoUrl = data.high || data.low;
+            
+            if (!videoUrl) throw new Error('No download URL');
+            
+            const fileRes = await tryRequest(() => axios.get(videoUrl, {
+                ...AXIOS_DEFAULTS,
+                responseType: 'arraybuffer'
+            }));
+            
+            return {
+                buffer: Buffer.from(fileRes.data),
+                title: data.title,
+                thumbnail: data.thumbnail,
+                source: 'Nayan AllDown',
+                mimeType: 'audio/mp4'
+            };
+        }
+        throw new Error('API response invalid');
+    } catch (err) {
+        throw new Error(`AllDown failed: ${err.message}`);
+    }
+}
+
+// Function to get audio from Nayan YouTube API
+async function getAudioFromYoutubeAPI(ytUrl) {
+    let videoId = '';
+    if (ytUrl.includes('youtu.be/')) {
+        videoId = ytUrl.split('youtu.be/')[1].split('?')[0];
+    } else if (ytUrl.includes('youtube.com/watch')) {
+        const urlParams = new URLSearchParams(ytUrl.split('?')[1]);
+        videoId = urlParams.get('v');
+    }
+
+    if (!videoId) throw new Error('Invalid URL');
+
+    const apiUrl = `https://nayan-video-downloader.vercel.app/youtube?url=https://youtu.be/${videoId}`;
+
+    try {
+        const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
+
+        if (res.data?.status === true && res.data?.data?.data?.formats) {
+            const formats = res.data.data.data.formats;
+            const title = res.data.data.data.title;
+            const thumbnail = res.data.data.data.thumbnail;
+            const author = res.data.data.data.author;
+            
+            let bestAudio = null;
+            let priority = 0;
+            
+            for (const format of formats) {
+                if (format.type === 'audio') {
+                    let p = 0;
+                    if (format.formatId === '251') p = 100;
+                    else if (format.formatId === '250') p = 90;
+                    else if (format.formatId === '249') p = 85;
+                    else if (format.formatId === '140') p = 80;
+                    else if (format.formatId === '139') p = 70;
+                    
+                    if (p > priority) {
+                        priority = p;
+                        bestAudio = format;
+                    }
                 }
-            } else if (res.data?.url) {
-                downloadUrl = res.data.url;
-            } else if (res.data?.download) {
-                downloadUrl = res.data.download;
-            } else if (res.data?.audio) {
-                downloadUrl = res.data.audio;
             }
+            
+            if (!bestAudio) {
+                for (const format of formats) {
+                    if (format.type === 'video_with_audio' && format.mimeType?.includes('mp4')) {
+                        bestAudio = format;
+                        break;
+                    }
+                }
+            }
+            
+            if (bestAudio?.url) {
+                const fileRes = await tryRequest(() => axios.get(bestAudio.url, {
+                    ...AXIOS_DEFAULTS,
+                    responseType: 'arraybuffer'
+                }));
+                
+                return {
+                    buffer: Buffer.from(fileRes.data),
+                    title: title,
+                    thumbnail: thumbnail,
+                    author: author,
+                    quality: bestAudio.quality || bestAudio.label,
+                    source: 'Nayan YouTube API',
+                    mimeType: 'audio/mp4'
+                };
+            }
+        }
+        throw new Error('No audio format found');
+    } catch (err) {
+        throw new Error(`YouTube API failed: ${err.message}`);
+    }
+}
 
-            if (downloadUrl && typeof downloadUrl === 'string') {
-                return { download: downloadUrl };
-            }
-        } catch (err) {
-            console.log(`API ${api} failed, trying next...`);
-            continue;
+async function getYoutubeAudio(ytUrl) {
+    try {
+        console.log('[PLAY] Trying AllDown API...');
+        return await getAudioFromAllDown(ytUrl);
+    } catch (allDownErr) {
+        console.log('[PLAY] AllDown failed, trying YouTube API...');
+        try {
+            return await getAudioFromYoutubeAPI(ytUrl);
+        } catch (ytErr) {
+            throw new Error('All APIs failed');
         }
     }
-    throw new Error('All MP3 APIs failed');
 }
 
 async function playCommand(sock, chatId, message) {
     try {
         const text = message.message?.conversation || message.message?.extendedTextMessage?.text || '';
-        const q = text.split(' ').slice(1).join(' ').trim();
+        const query = text.split(' ').slice(1).join(' ').trim();
 
-if (!q) return sock.sendMessage(chatId, {
-  text: '🎵 *Unataka wimbo gani?*\n\n📝 Mfano: `.play Darude Sandstorm`'
-}); 
+        if (!query) {
+            return sock.sendMessage(chatId, { 
+                text: '🎵 *Play Music*\n\n📝 .play song name\n🔗 .play youtube_url' 
+            });
+        }
 
         await sock.sendMessage(chatId, { react: { text: '🔍', key: message.key } });
 
-        const s = await yts(q);
-        const v = s?.videos?.[0];
-        if (!v) return sock.sendMessage(chatId, { text: '❌ Sikuipata wimbo huo! Jaribu kutafuta kwa maneno mengine.' });
+        let videoUrl = query;
+        let videoInfo = null;
+        let thumbnailUrl = '';
 
-        try {
-            await sock.sendMessage(chatId, {
-                image: { url: v.thumbnail },
-                caption: `🎵 *${v.title}*\n⏱️ *Muda:* ${v.timestamp}\n👤 *Msanii:* ${v.author.name}\n👁️ *Views:* ${v.views?.toLocaleString() || 'N/A'}\n\n📥 *Inapakua...*`
-            }, { quoted: message });
-        } catch (thumbErr) {
-            console.log('Thumbnail send failed, continuing...');
+        if (!query.includes('youtube.com') && !query.includes('youtu.be')) {
+            const searchResults = await yts(query);
+            const videos = searchResults?.videos;
+            
+            if (!videos || videos.length === 0) {
+                await sock.sendMessage(chatId, { react: { text: '❌', key: message.key } });
+                return sock.sendMessage(chatId, { text: '❌ Song not found' });
+            }
+
+            videoInfo = videos[0];
+            videoUrl = videoInfo.url;
+            thumbnailUrl = videoInfo.thumbnail;
+            
+            const infoText = `🎵 *${videoInfo.title}*\n⏱️ ${videoInfo.timestamp} | 👤 ${videoInfo.author.name}\n👁️ ${(videoInfo.views || 0).toLocaleString()}\n\n⬇️ Downloading...`;
+            
+            if (thumbnailUrl) {
+                await sock.sendMessage(chatId, {
+                    image: { url: thumbnailUrl },
+                    caption: infoText
+                });
+            } else {
+                await sock.sendMessage(chatId, { text: infoText });
+            }
+        } else {
+            await sock.sendMessage(chatId, { text: '⬇️ Processing...' });
         }
 
-        await handleAudioDownload(sock, chatId, v.url, message, v);
+        const processMsg = await sock.sendMessage(chatId, { text: '⏳ Loading...' });
 
-    } catch (err) {
-        console.error('[PLAY] Error:', err?.message || err);
-        await sock.sendMessage(chatId, { react: { text: '❌', key: message.key } });
-        sock.sendMessage(chatId, { text: '❌ *Hitilafu!* ' + (err.message || 'Jaribu tena baadae') });
-    }
-}
+        const audioData = await getYoutubeAudio(videoUrl);
 
-async function handleAudioDownload(sock, chatId, ytUrl, message, videoInfo = null) {
-    try {
-        await sock.sendMessage(chatId, { react: { text: '📥', key: message.key } });
+        await sock.sendMessage(chatId, { delete: processMsg.key });
 
-        const data = await getYoutubeMp3(ytUrl);
+        // Send thumbnail as normal image (if available and not sent yet)
+        if (audioData.thumbnail && !thumbnailUrl) {
+            await sock.sendMessage(chatId, {
+                image: { url: audioData.thumbnail },
+                caption: `🎵 *${audioData.title.substring(0, 50)}*\n📡 ${audioData.source}`
+            });
+        }
 
-        // Audio message bila contextInfo (picha ndogo/ad info)
+        // Send audio
         const audioMessage = {
-            audio: { url: data.download },
+            audio: audioData.buffer,
             mimetype: 'audio/mp4',
             ptt: false,
-            fileName: videoInfo?.title ? `${videoInfo.title}.mp3` : 'audio.mp3'
+            fileName: `${audioData.title.substring(0, 40)}.mp4`
         };
 
-        await sock.sendMessage(chatId, audioMessage, { quoted: message });
-
+        await sock.sendMessage(chatId, audioMessage);
         await sock.sendMessage(chatId, { react: { text: '✅', key: message.key } });
 
-    } catch (e) {
-        console.error('Audio download error:', e);
+    } catch (err) {
+        console.error('[PLAY] Error:', err);
         await sock.sendMessage(chatId, { react: { text: '❌', key: message.key } });
-        await sock.sendMessage(chatId, { text: "❌ *Download imefeli:* " + (e.message || 'API haipatikani') }, { quoted: message });
+        await sock.sendMessage(chatId, { text: '❌ Error: Try again later' });
     }
 }
 
 module.exports = playCommand;
-module.exports.handleAudioDownload = handleAudioDownload;
-module.exports.getYoutubeMp3 = getYoutubeMp3;

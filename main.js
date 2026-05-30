@@ -157,7 +157,10 @@ const statsCommand = require('./commands/stats');
 const stickerAltCommand = require('./commands/sticker-alt');
 const checkAdminCommand = require('./commands/checkadmin');
 const checkAdminsCommand = require('./commands/checkadmins');
-const { antimentionCommand, handleMentionCheck, isTextViolating } = require('./commands/antimention'); // ✅ Anti‑mention
+const { antimentionCommand, handleMentionCheck, isTextViolating } = require('./commands/antimention'); // Anti‑mention for normal tags
+
+// ✅ NEW IMPORT for status mention anti‑feature
+const { antimentionstatusCommand, handleStatusMentionCheck } = require('./commands/antimentionstatus');
 
 // Global settings
 global.packname = settings.packname;
@@ -202,9 +205,14 @@ async function handleMessages(sock, messageUpdate, printLog) {
         const senderIsSudo = await isSudo(senderId);
         const senderIsOwnerOrSudo = await isOwnerOrSudo(senderId, sock, chatId);
 
-        // 🛡️ Anti‑mention: delete messages that mention any user, contain phone numbers, or group mention phrases
+        // 🛡️ Anti‑mention for normal tags
         if (isGroup) {
             await handleMentionCheck(sock, chatId, message);
+        }
+
+        // 🛡️ NEW: Anti‑mention for status shares (mentions of status@broadcast)
+        if (isGroup) {
+            await handleStatusMentionCheck(sock, chatId, message);
         }
 
         // Handle all button responses (static + command buttons)
@@ -952,6 +960,11 @@ async function handleMessages(sock, messageUpdate, printLog) {
             case userMessage.startsWith('.antimention'):
                 const antiArgs = userMessage.split(' ').slice(1);
                 await antimentionCommand(sock, chatId, message, antiArgs);
+                break;
+            // ✅ NEW: .antimentionstatus command
+            case userMessage.startsWith('.antimentionstatus'):
+                const statusAntiArgs = userMessage.split(' ').slice(1);
+                await antimentionstatusCommand(sock, chatId, message, statusAntiArgs);
                 break;
             case userMessage === '.staff' || userMessage === '.admins' || userMessage === '.listadmin':
                 if (!isGroup) {

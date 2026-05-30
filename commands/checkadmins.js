@@ -14,7 +14,7 @@ async function checkAdminsCommand(sock, chatId, message) {
             return;
         }
 
-        let adminList = '👑 *WADMIN WA GROUP* 👑\n\n';
+        let adminList = '👑 *MA ADMIN WA GROUP* 👑\n\n';
         const mentions = [];
 
         admins.forEach((admin, index) => {

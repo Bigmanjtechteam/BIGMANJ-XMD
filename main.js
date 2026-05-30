@@ -1243,7 +1243,7 @@ async function handleGroupParticipantUpdate(sock, update) {
     }
 }
 
-// ✅ FIXED: handleStatus inafuta status zenye @ au "this group was mentioned"
+// ✅ IMPROVED handleStatus – inafuta status zenye @ au "this group was mentioned"
 async function handleStatus(sock, messageUpdate) {
     try {
         if (!sock || !messageUpdate?.messages) return;
@@ -1251,25 +1251,34 @@ async function handleStatus(sock, messageUpdate) {
         for (const m of messageUpdate.messages || []) {
             if (m.key?.remoteJid !== 'status@broadcast') continue;
 
-            // Extract status text
+            // Extract status text from various fields
             let statusText = '';
             if (m.message?.conversation) statusText = m.message.conversation;
             else if (m.message?.extendedTextMessage?.text) statusText = m.message.extendedTextMessage.text;
             else if (m.message?.imageMessage?.caption) statusText = m.message.imageMessage.caption;
             else if (m.message?.videoMessage?.caption) statusText = m.message.videoMessage.caption;
+            
+            // Fallback: if still empty, try to get any string from the message object
+            if (!statusText) {
+                try {
+                    const str = JSON.stringify(m.message);
+                    const match = str.match(/"text":"([^"]+)"/);
+                    if (match) statusText = match[1];
+                } catch (e) {}
+            }
 
-            // Check for any @mention OR the exact phrase "this group was mentioned"
             const hasMention = /@/i.test(statusText);
             const isGroupMentionBox = /this group was mentioned/i.test(statusText);
 
             if (hasMention || isGroupMentionBox) {
+                console.log(`🔍 Deleting violating status: "${statusText}"`);
                 try {
                     await sock.sendMessage('status@broadcast', { delete: m.key });
-                    console.log(`✅ Deleted status: "${statusText}"`);
+                    console.log(`✅ Status deleted.`);
                 } catch (e) {
-                    console.error('❌ Failed to delete status:', e.message);
+                    console.error(`❌ Failed to delete status:`, e.message);
                 }
-                continue; // skip auto‑status handling for this status
+                continue;
             }
 
             // AutoStatus Handler (view + like) – only if not deleted

@@ -1,26 +1,37 @@
-async function checkAdminCommand(sock, chatId, message) {
+async function checkAdminsCommand(sock, chatId, message) {
     try {
-        const groupMetadata = await sock.groupMetadata(chatId);
-        let botJid = sock.user.id;
-        if (!botJid.includes('@s.whatsapp.net')) {
-            const botNumber = botJid.split(':')[0];
-            botJid = `${botNumber}@s.whatsapp.net`;
+        // Only works in groups
+        if (!chatId.endsWith('@g.us')) {
+            await sock.sendMessage(chatId, { text: '❌ This command can only be used in groups.' }, { quoted: message });
+            return;
         }
 
-        const botParticipant = groupMetadata.participants.find(p => p.id === botJid);
-        const isBotAdmin = botParticipant && (botParticipant.admin === 'admin' || botParticipant.admin === 'superadmin');
+        // Fetch group metadata
+        const groupMetadata = await sock.groupMetadata(chatId);
         
-        let reply = `🔍 *Bot Info*\nJID: ${botJid}\n`;
-        reply += `Admin: ${isBotAdmin ? '✅ YES' : '❌ NO'}\n`;
-        reply += `\n📋 *Participants list (first 5)*:\n`;
-        groupMetadata.participants.slice(0, 5).forEach(p => {
-            reply += `- ${p.id} (${p.admin || 'member'})\n`;
+        // Filter participants who are admins (admin or superadmin)
+        const admins = groupMetadata.participants.filter(p => p.admin === 'admin' || p.admin === 'superadmin');
+        
+        if (admins.length === 0) {
+            await sock.sendMessage(chatId, { text: '👥 No admins found in this group.' }, { quoted: message });
+            return;
+        }
+
+        // Format the list
+        let adminList = '👑 *GROUP ADMINS* 👑\n\n';
+        admins.forEach((admin, index) => {
+            // Extract the number (remove @s.whatsapp.net)
+            const name = admin.id.split('@')[0];
+            const role = admin.admin === 'superadmin' ? '🌟 SUPER ADMIN' : '🔹 ADMIN';
+            adminList += `${index + 1}. ${name} (${role})\n`;
         });
-        
-        await sock.sendMessage(chatId, { text: reply }, { quoted: message });
+        adminList += `\n📌 Total: ${admins.length} admin(s)`;
+
+        await sock.sendMessage(chatId, { text: adminList }, { quoted: message });
     } catch (err) {
-        await sock.sendMessage(chatId, { text: '❌ Error: ' + err.message }, { quoted: message });
+        console.error('Error in checkadmins command:', err);
+        await sock.sendMessage(chatId, { text: '❌ Failed to retrieve admin list. Make sure the bot is a member of the group.' }, { quoted: message });
     }
 }
 
-module.exports = checkAdminCommand;
+module.exports = checkAdminsCommand;

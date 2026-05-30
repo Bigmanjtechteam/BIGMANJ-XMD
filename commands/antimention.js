@@ -3,7 +3,7 @@ const path = require('path');
 const settings = require('../settings');
 
 const DATA_PATH = path.join(__dirname, '../data/antimention.json');
-const FOOTER = '\n\n> bigmanj tech';  // ✅ small letters footer
+const FOOTER = '\n\n> bigmanj tech';
 
 function loadData() {
     try {
@@ -20,19 +20,40 @@ function saveData(data) {
     fs.writeFileSync(DATA_PATH, JSON.stringify(data, null, 2));
 }
 
-function containsPhoneNumber(text) {
-    const phoneRegex = /(?:\+?255|0)[\s\-]?[0-9]{2}[\s\-]?[0-9]{3}[\s\-]?[0-9]{4,}/;
-    return phoneRegex.test(text);
-}
-
-function containsGroupMention(text) {
-    const groupPhrases = /(this group was mentioned|group mentioned|@everyone|@all|group link)/i;
+// Check for "group mention" phrase (the box)
+function isGroupMention(text) {
+    if (!text) return false;
+    const groupPhrases = /(this group was mentioned|group mentioned|@everyone|@all)/i;
     return groupPhrases.test(text);
 }
 
-function isTextViolating(text) {
-    if (!text) return false;
-    return containsPhoneNumber(text) || containsGroupMention(text);
+// Get protected numbers from settings (owner + sudo)
+function getProtectedNumbers() {
+    const numbers = [];
+    if (settings.ownerNumber) numbers.push(settings.ownerNumber);
+    if (settings.sudoNumbers && Array.isArray(settings.sudoNumbers)) {
+        numbers.push(...settings.sudoNumbers);
+    }
+    return numbers.map(num => {
+        let clean = num.toString().replace(/\s/g, '');
+        if (!clean.includes('@')) clean = `${clean}@s.whatsapp.net`;
+        return clean;
+    });
+}
+
+// Check if a given JID is admin, owner, or sudo
+async function isProtectedUser(sock, chatId, jid, protectedJids) {
+    // First check owner/sudo
+    if (protectedJids.includes(jid)) return true;
+    // Then check group admins
+    try {
+        const groupMetadata = await sock.groupMetadata(chatId);
+        const participant = groupMetadata.participants.find(p => p.id === jid);
+        return participant && (participant.admin === 'admin' || participant.admin === 'superadmin');
+    } catch (err) {
+        console.error('Failed to check admin status:', err);
+        return false;
+    }
 }
 
 async function antimentionCommand(sock, chatId, message, args) {
@@ -57,7 +78,7 @@ async function antimentionCommand(sock, chatId, message, args) {
     if (sub === 'on') {
         data.groups[chatId].enabled = true;
         saveData(data);
-        await sock.sendMessage(chatId, { text: '🛡️ *Anti‑mention IMEWASHWA* – ujumbe unaomention mtu yeyote, namba za simu, au group mention utafutwa.' + FOOTER, quoted: message });
+        await sock.sendMessage(chatId, { text: '🛡️ *Anti‑mention IMEWASHWA* – ujumbe unaomtag mtu asiye admin/owner/sudo au "group mention" utafutwa.' + FOOTER, quoted: message });
     } else if (sub === 'off') {
         data.groups[chatId].enabled = false;
         saveData(data);
@@ -68,29 +89,58 @@ async function antimentionCommand(sock, chatId, message, args) {
     }
 }
 
+// Main check for normal messages
 async function handleMentionCheck(sock, chatId, message) {
     const data = loadData();
     if (!data.groups[chatId] || !data.groups[chatId].enabled) return;
 
+    // Extract message text
     let messageText = '';
     if (message.message?.conversation) messageText = message.message.conversation;
     else if (message.message?.extendedTextMessage?.text) messageText = message.message.extendedTextMessage.text;
     else if (message.message?.imageMessage?.caption) messageText = message.message.imageMessage.caption;
     else if (message.message?.videoMessage?.caption) messageText = message.message.videoMessage.caption;
 
-    const mentionedJids = message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
-    const hasAnyMention = mentionedJids.length > 0;
-    const hasViolatingText = isTextViolating(messageText);
-
-    if (hasAnyMention || hasViolatingText) {
+    // 1. Delete if it's a "group mention" box
+    if (isGroupMention(messageText)) {
         try {
             await sock.sendMessage(chatId, { delete: message.key });
         } catch (err) {
-            console.error('Failed to delete message:', err);
+            console.error('Failed to delete group mention:', err);
         }
-        const warning = `⚠️ *Anti‑mention*\nUjumbe wako umeondolewa kwa sababu ulijumuisha tag, namba ya simu, au group mention.` + FOOTER;
-        await sock.sendMessage(chatId, { text: warning });
+        await sock.sendMessage(chatId, { text: `⚠️ *Anti‑mention*\nUjumbe wa "group mention" (kiboksi) umeondolewa.` + FOOTER });
+        return;
     }
+
+    // 2. Check mentions (tags)
+    const mentionedJids = message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+    if (mentionedJids.length === 0) return;
+
+    const protectedJids = getProtectedNumbers();
+    let shouldDelete = false;
+
+    for (const jid of mentionedJids) {
+        const isProtected = await isProtectedUser(sock, chatId, jid, protectedJids);
+        if (!isProtected) {
+            // This mention is of a normal member (not admin/owner/sudo)
+            shouldDelete = true;
+            break;
+        }
+    }
+
+    if (shouldDelete) {
+        try {
+            await sock.sendMessage(chatId, { delete: message.key });
+        } catch (err) {
+            console.error('Failed to delete message with non‑admin tag:', err);
+        }
+        await sock.sendMessage(chatId, { text: `⚠️ *Anti‑mention*\nUjumbe wako umeondolewa kwa sababu ulimtag mtu asiye admin/owner/sudo.` + FOOTER });
+    }
+}
+
+// Reusable function for status updates (only checks group mention phrase)
+function isTextViolating(text) {
+    return isGroupMention(text);
 }
 
 module.exports = { antimentionCommand, handleMentionCheck, isTextViolating };

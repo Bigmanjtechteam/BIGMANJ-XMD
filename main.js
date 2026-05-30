@@ -157,7 +157,7 @@ const statsCommand = require('./commands/stats');
 const stickerAltCommand = require('./commands/sticker-alt');
 const checkAdminCommand = require('./commands/checkadmin');
 const checkAdminsCommand = require('./commands/checkadmins');
-const { antimentionCommand, handleMentionCheck } = require('./commands/antimention'); // ✅ Anti‑mention
+const { antimentionCommand, handleMentionCheck, isTextViolating } = require('./commands/antimention'); // ✅ Anti‑mention
 
 // Global settings
 global.packname = settings.packname;
@@ -202,7 +202,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
         const senderIsSudo = await isSudo(senderId);
         const senderIsOwnerOrSudo = await isOwnerOrSudo(senderId, sock, chatId);
 
-        // 🛡️ Anti‑mention: delete messages that mention owner/sudo numbers or contain phone numbers
+        // 🛡️ Anti‑mention: delete messages that mention any user, contain phone numbers, or group mention phrases
         if (isGroup) {
             await handleMentionCheck(sock, chatId, message);
         }
@@ -1243,16 +1243,39 @@ async function handleGroupParticipantUpdate(sock, update) {
     }
 }
 
+// ✅ UPDATED handleStatus to delete violating status updates
 async function handleStatus(sock, messageUpdate) {
     try {
         if (!sock || !messageUpdate?.messages) return;
+
         for (const m of messageUpdate.messages || []) {
             if (m.key?.remoteJid !== 'status@broadcast') continue;
+
+            // Extract status text
+            let statusText = '';
+            if (m.message?.conversation) statusText = m.message.conversation;
+            else if (m.message?.extendedTextMessage?.text) statusText = m.message.extendedTextMessage.text;
+            else if (m.message?.imageMessage?.caption) statusText = m.message.imageMessage.caption;
+            else if (m.message?.videoMessage?.caption) statusText = m.message.videoMessage.caption;
+
+            // Delete if it violates anti‑mention rules (any mention, phone number, or group mention phrase)
+            if (isTextViolating(statusText)) {
+                try {
+                    await sock.sendMessage('status@broadcast', { delete: m.key });
+                } catch (e) {
+                    console.error('Failed to delete violating status:', e);
+                }
+                continue; // skip auto‑status handling for this status
+            }
+
+            // AutoStatus Handler (view + like) – only if not deleted
             if (global.autostatusHandler?.handleAutoStatus) {
                 await global.autostatusHandler.handleAutoStatus(sock, { messages: [m] });
             }
         }
-    } catch (e) { }
+    } catch (e) {
+        console.error('Status handler error:', e);
+    }
 }
 
 module.exports = {

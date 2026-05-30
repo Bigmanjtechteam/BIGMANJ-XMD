@@ -171,31 +171,43 @@ global.ytch = "MICKEY";
 // Load special handlers for background processing
 global.autostatusHandler = require(path.join(process.cwd(), 'commands', 'autostatus.js'));
 
-// ---------------------- ONLINE TRACKER ----------------------
-// Initialize global storage for online users (per group)
-global.onlineUsers = new Map(); // key: groupJid, value: Set of participant JIDs
+// ---------------------- ONLINE TRACKER (with expiry) ----------------------
+// Map<groupJid, Map<userJid, lastSeenTimestamp>>
+global.onlineUsers = new Map();
+const ONLINE_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+
+// Clean up old entries every minute
+setInterval(() => {
+    const now = Date.now();
+    for (const [groupJid, users] of global.onlineUsers.entries()) {
+        for (const [userJid, lastSeen] of users.entries()) {
+            if (now - lastSeen > ONLINE_TIMEOUT) {
+                users.delete(userJid);
+            }
+        }
+        if (users.size === 0) global.onlineUsers.delete(groupJid);
+    }
+}, 60 * 1000);
 
 /**
- * Call this function once after your bot connects (sock is ready)
+ * Call this function once after your bot connects to enable presence tracking.
  * @param {object} sock - Baileys socket instance
  */
 function initOnlineTracker(sock) {
     if (!sock) return;
     sock.ev.on('presence.update', (update) => {
         const { id, presences } = update;
-        if (!id.endsWith('@g.us')) return; // Only track groups
-        let onlineSet = global.onlineUsers.get(id);
-        if (!onlineSet) {
-            onlineSet = new Set();
-            global.onlineUsers.set(id, onlineSet);
+        if (!id.endsWith('@g.us')) return; // Only groups
+        let groupUsers = global.onlineUsers.get(id);
+        if (!groupUsers) {
+            groupUsers = new Map();
+            global.onlineUsers.set(id, groupUsers);
         }
         for (const [jid, presenceData] of Object.entries(presences)) {
             const status = presenceData.lastKnownPresence;
             if (status === 'available' || status === 'composing' || status === 'recording') {
-                onlineSet.add(jid);
-            } else {
-                onlineSet.delete(jid);
-            }
+                groupUsers.set(jid, Date.now());
+            } // Do not delete on away; let timeout handle it
         }
     });
     console.log('✅ Online tracker initialised – .listonline will work.');
@@ -244,6 +256,16 @@ async function handleMessages(sock, messageUpdate, printLog) {
         // 🛡️ Anti‑mention for status shares (mentions of status@broadcast)
         if (isGroup) {
             await handleStatusMentionCheck(sock, chatId, message);
+        }
+
+        // ✅ Mark the sender as online (every message resets their timer)
+        if (isGroup && senderId) {
+            let groupUsers = global.onlineUsers.get(chatId);
+            if (!groupUsers) {
+                groupUsers = new Map();
+                global.onlineUsers.set(chatId, groupUsers);
+            }
+            groupUsers.set(senderId, Date.now());
         }
 
         // Handle all button responses (static + command buttons)
@@ -1348,5 +1370,5 @@ module.exports = {
     handleStatusUpdate,
     handleGroupParticipantUpdate,
     handleStatus,
-    initOnlineTracker // Export so you can call it from your main bot startup
+    initOnlineTracker
 };

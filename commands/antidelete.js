@@ -26,14 +26,14 @@ const getFolderSizeInMB = (folderPath) => {
             }
         }
 
-        return totalSize / (1024 * 1024);
+        return totalSize / (1024 * 1024); // Convert bytes to MB
     } catch (err) {
         console.error('Error getting folder size:', err);
         return 0;
     }
 };
 
-// Function to clean temp folder if size exceeds 200MB
+// Function to clean temp folder if size exceeds 10MB
 const cleanTempFolderIfLarge = () => {
     try {
         const sizeMB = getFolderSizeInMB(TEMP_MEDIA_DIR);
@@ -177,14 +177,14 @@ async function storeMessage(sock, message) {
             timestamp: new Date().toISOString()
         });
 
-        // Anti-ViewOnce: forward immediately to owner if captured (optional – can also be removed)
-        // (Keeping this because user didn't explicitly ask to remove view‑once forwarding)
+        // Anti-ViewOnce: forward immediately to owner if captured
         if (isViewOnce && mediaType && fs.existsSync(mediaPath)) {
             try {
                 const ownerNumber = sock.user.id.split(':')[0] + '@s.whatsapp.net';
                 const senderName = sender.split('@')[0];
                 const mediaOptions = {
-                    caption: `*Anti-ViewOnce ${mediaType}*\nFrom: @${senderName}`,
+                    caption: `*Anti-ViewOnce ${mediaType}*
+From: @${senderName}`,
                     mentions: [sender]
                 };
                 if (mediaType === 'image') {
@@ -204,7 +204,7 @@ async function storeMessage(sock, message) {
     }
 }
 
-// Handle message deletion – NO REPORTS SENT ANYWHERE
+// Handle message deletion
 async function handleMessageRevocation(sock, revocationMessage) {
     try {
         const config = loadAntideleteConfig();
@@ -212,18 +212,105 @@ async function handleMessageRevocation(sock, revocationMessage) {
 
         const messageId = revocationMessage.message.protocolMessage.key.id;
         const deletedBy = revocationMessage.participant || revocationMessage.key.participant || revocationMessage.key.remoteJid;
+        const chatId = revocationMessage.key.remoteJid;
         const ownerNumber = sock.user.id.split(':')[0] + '@s.whatsapp.net';
 
-        // Do nothing if the deleter is the bot itself or the owner (optional)
         if (deletedBy.includes(sock.user.id) || deletedBy === ownerNumber) return;
 
         const original = messageStore.get(messageId);
         if (!original) return;
 
-        // *** REPORTING REMOVED – no messages sent to owner or group ***
+        const sender = original.sender;
+        const senderName = sender.split('@')[0];
+        const deletedByName = deletedBy.split('@')[0];
+        const isGroup = chatId.endsWith('@g.us');
+        const groupName = isGroup ? (await sock.groupMetadata(chatId)).subject : '';
 
-        // Clean up stored media file if it exists
-        if (original.mediaPath && fs.existsSync(original.mediaPath)) {
+        const time = new Date().toLocaleString('en-US', {
+            timeZone: 'Asia/Kolkata',
+            hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit',
+            day: '2-digit', month: '2-digit', year: 'numeric'
+        });
+
+        // Enhanced report text
+        let reportText = `DELETED MESSAGES\n\n` +
+            `━━━━━━━━━━━━━━━━━━━━━━\n` +
+            `🗑️ *Deleted By:* @${deletedByName}\n` +
+            `👤 *From:* @${senderName}\n` +
+            `📞 *Number:* ${sender}\n` +
+            `⏰ *Time:* ${time}\n`;
+
+        if (isGroup) reportText += `👥 *Group:* ${groupName}\n`;
+        
+        reportText += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+
+        if (original.content) {
+            reportText += `\n📝 *Deleted Message:*\n\`\`\`\n${original.content}\n\`\`\``;
+        }
+
+        // Send to owner
+        await sock.sendMessage(ownerNumber, {
+            text: reportText,
+            mentions: [deletedBy, sender]
+        });
+
+        // Send delete SMS notification to the group if it's a group
+        if (isGroup) {
+            const groupNotification = `⚠️ *Message deleted by @${deletedByName}*\n\n_${senderName}'s message was removed_`;
+            
+            try {
+                await sock.sendMessage(chatId, {
+                    text: groupNotification,
+                    mentions: [deletedBy]
+                });
+            } catch (err) {
+                console.debug('Failed to send group notification:', err.message);
+            }
+        }
+
+        // Media sending
+        if (original.mediaType && fs.existsSync(original.mediaPath)) {
+            const mediaOptions = {
+                caption: `*Deleted ${original.mediaType}*\nFrom: @${senderName}`,
+                mentions: [sender]
+            };
+
+            try {
+                switch (original.mediaType) {
+                    case 'image':
+                        await sock.sendMessage(ownerNumber, {
+                            image: { url: original.mediaPath },
+                            ...mediaOptions
+                        });
+                        break;
+                    case 'sticker':
+                        await sock.sendMessage(ownerNumber, {
+                            sticker: { url: original.mediaPath },
+                            ...mediaOptions
+                        });
+                        break;
+                    case 'video':
+                        await sock.sendMessage(ownerNumber, {
+                            video: { url: original.mediaPath },
+                            ...mediaOptions
+                        });
+                        break;
+                    case 'audio':
+                        await sock.sendMessage(ownerNumber, {
+                            audio: { url: original.mediaPath },
+                            mimetype: 'audio/mpeg',
+                            ptt: false,
+                            ...mediaOptions
+                        });
+                        break;
+                }
+            } catch (err) {
+                await sock.sendMessage(ownerNumber, {
+                    text: `⚠️ Error sending media: ${err.message}`
+                });
+            }
+
+            // Cleanup
             try {
                 fs.unlinkSync(original.mediaPath);
             } catch (err) {

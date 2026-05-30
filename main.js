@@ -155,8 +155,8 @@ const shazamCommand = require('./commands/shazam');
 const repoCommand = require('./commands/repo');
 const statsCommand = require('./commands/stats');
 const stickerAltCommand = require('./commands/sticker-alt');
-const checkAdminCommand = require('./commands/checkadmin'); // ✅ ADDED
-const checkAdminsCommand = require('./commands/checkadmins'); // ✅ ADDED for .checkadmins
+const checkAdminCommand = require('./commands/checkadmin');
+const checkAdminsCommand = require('./commands/checkadmins');
 
 // Global settings
 global.packname = settings.packname;
@@ -927,21 +927,20 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 }
                 await resetlinkCommand(sock, chatId, senderId);
                 break;
-            // ✅ ADDED: .checkadmin command
-            case userMessage.startsWith('.checkadmin'):
-                if (!isGroup) {
-                    await sock.sendMessage(chatId, { text: 'This command can only be used in groups.' }, { quoted: message });
-                    return;
-                }
-                await checkAdminCommand(sock, chatId, message);
-                break;
-            // ✅ ADDED: .checkadmins command (list all admins)
+            // ✅ FIXED ORDER: .checkadmins (longer) BEFORE .checkadmin (shorter)
             case userMessage.startsWith('.checkadmins'):
                 if (!isGroup) {
                     await sock.sendMessage(chatId, { text: 'This command can only be used in groups.' }, { quoted: message });
                     break;
                 }
                 await checkAdminsCommand(sock, chatId, message);
+                break;
+            case userMessage.startsWith('.checkadmin'):
+                if (!isGroup) {
+                    await sock.sendMessage(chatId, { text: 'This command can only be used in groups.' }, { quoted: message });
+                    return;
+                }
+                await checkAdminCommand(sock, chatId, message);
                 break;
             case userMessage === '.staff' || userMessage === '.admins' || userMessage === '.listadmin':
                 if (!isGroup) {

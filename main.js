@@ -158,9 +158,8 @@ const stickerAltCommand = require('./commands/sticker-alt');
 const checkAdminCommand = require('./commands/checkadmin');
 const checkAdminsCommand = require('./commands/checkadmins');
 const { antimentionCommand, handleMentionCheck, isTextViolating } = require('./commands/antimention'); // Anti‑mention for normal tags
-
-// ✅ NEW IMPORT for status mention anti‑feature
-const { antimentionstatusCommand, handleStatusMentionCheck } = require('./commands/antimentionstatus');
+const { antimentionstatusCommand, handleStatusMentionCheck } = require('./commands/antimentionstatus'); // Status mention anti‑feature
+const toimgCommand = require('./commands/toimg'); // ✅ ADDED for .toimg
 
 // Global settings
 global.packname = settings.packname;
@@ -210,7 +209,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
             await handleMentionCheck(sock, chatId, message);
         }
 
-        // 🛡️ NEW: Anti‑mention for status shares (mentions of status@broadcast)
+        // 🛡️ Anti‑mention for status shares (mentions of status@broadcast)
         if (isGroup) {
             await handleStatusMentionCheck(sock, chatId, message);
         }
@@ -965,6 +964,10 @@ async function handleMessages(sock, messageUpdate, printLog) {
             case userMessage.startsWith('.antimentionstatus'):
                 const statusAntiArgs = userMessage.split(' ').slice(1);
                 await antimentionstatusCommand(sock, chatId, message, statusAntiArgs);
+                break;
+            // ✅ ADDED: .toimg command (convert sticker to image)
+            case userMessage.startsWith('.toimg'):
+                await toimgCommand(sock, chatId, message);
                 break;
             case userMessage === '.staff' || userMessage === '.admins' || userMessage === '.listadmin':
                 if (!isGroup) {

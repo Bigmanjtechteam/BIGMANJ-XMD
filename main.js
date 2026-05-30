@@ -155,6 +155,7 @@ const shazamCommand = require('./commands/shazam');
 const repoCommand = require('./commands/repo');
 const statsCommand = require('./commands/stats');
 const stickerAltCommand = require('./commands/sticker-alt');
+const checkAdminCommand = require('./commands/checkadmin'); // ✅ ADDED
 
 // Global settings
 global.packname = settings.packname;
@@ -591,7 +592,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
         }
 
         switch (true) {
-            // .simage command removed
+            // ... (existing cases)
             case userMessage.startsWith('.add'):
                 const addArgs = userMessage.trim().split(/\s+/);
                 const phoneNumber = addArgs.slice(1).join(' ').trim();
@@ -675,8 +676,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
             case userMessage.startsWith('.delete') || userMessage.startsWith('.del'):
                 await deleteCommand(sock, chatId, message, senderId);
                 break;
-            // .attp command removed
-
             case userMessage === '.settings':
                 await settingsCommand(sock, chatId, message);
                 break;
@@ -807,8 +806,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 }
                 await handleAntitagCommand(sock, chatId, userMessage, senderId, isSenderAdmin, message);
                 break;
-            // .antileft command removed
-
             case userMessage.startsWith('.weather'):
                 const city = userMessage.slice(9).trim();
                 if (city) {
@@ -826,7 +823,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
             case userMessage.startsWith('.halotel'):
                 await halotelCommand(sock, chatId, message, userMessage);
                 break;
-            // .phone removed
             case userMessage === '.topmembers':
                 topMembers(sock, chatId, isGroup);
                 break;
@@ -895,7 +891,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
                     await sock.sendMessage(chatId, { text: 'This command can only be used in groups.' }, { quoted: message });
                 }
                 break;
-            // .github/.git/.repo removed
             case userMessage.startsWith('.antibadword'):
                 if (!isGroup) {
                     await sock.sendMessage(chatId, { text: 'This command can only be used in groups.' }, { quoted: message });
@@ -930,6 +925,14 @@ async function handleMessages(sock, messageUpdate, printLog) {
                     return;
                 }
                 await resetlinkCommand(sock, chatId, senderId);
+                break;
+            // ✅ ADDED: .checkadmin command
+            case userMessage.startsWith('.checkadmin'):
+                if (!isGroup) {
+                    await sock.sendMessage(chatId, { text: 'This command can only be used in groups.' }, { quoted: message });
+                    return;
+                }
+                await checkAdminCommand(sock, chatId, message);
                 break;
             case userMessage === '.staff' || userMessage === '.admins' || userMessage === '.listadmin':
                 if (!isGroup) {

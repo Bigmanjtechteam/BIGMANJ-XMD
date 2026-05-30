@@ -7,10 +7,7 @@ async function listonlineCommand(sock, chatId, message) {
             return;
         }
 
-        // Ensure global.onlineUsers exists
-        if (!global.onlineUsers) {
-            global.onlineUsers = new Map();
-        }
+        if (!global.onlineUsers) global.onlineUsers = new Map();
 
         const senderId = message.key.participant || message.key.remoteJid;
         let groupUsers = global.onlineUsers.get(chatId);
@@ -19,16 +16,16 @@ async function listonlineCommand(sock, chatId, message) {
             global.onlineUsers.set(chatId, groupUsers);
         }
 
-        // 1. Mark the command sender as online (with current time)
+        // 1. Mark the command sender as online RIGHT NOW
         groupUsers.set(senderId, Date.now());
 
-        // 2. Also add the bot’s own JID (if it’s a participant)
+        // 2. Also mark the bot itself (so it always appears)
         const botJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
         groupUsers.set(botJid, Date.now());
 
-        // Remove any users who haven't been active in the last 10 minutes
+        // 3. Remove users who have been inactive for more than 2 minutes
         const now = Date.now();
-        const TIMEOUT = 10 * 60 * 1000; // 10 minutes
+        const TIMEOUT = 2 * 60 * 1000; // 2 minutes
         for (const [jid, lastSeen] of groupUsers.entries()) {
             if (now - lastSeen > TIMEOUT) {
                 groupUsers.delete(jid);
@@ -51,9 +48,8 @@ async function listonlineCommand(sock, chatId, message) {
         const mentions = [];
 
         for (const [jid, lastSeen] of groupUsers.entries()) {
-            // Only include current participants
             const participant = participantMap.get(jid);
-            if (!participant) continue;
+            if (!participant) continue; // user left the group
             const name = participant.pushName || jid.split('@')[0];
             listMessage += `• @${name}\n`;
             mentions.push(jid);

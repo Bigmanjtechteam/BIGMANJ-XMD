@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const settings = require('../settings'); // Import your settings.js
+const settings = require('../settings');
 
 const DATA_PATH = path.join(__dirname, '../data/antimention.json');
 
@@ -19,14 +19,13 @@ function saveData(data) {
     fs.writeFileSync(DATA_PATH, JSON.stringify(data, null, 2));
 }
 
-// Get protected numbers from settings.js
+// Get protected numbers from settings.js (owner + sudo)
 function getProtectedNumbers() {
     const numbers = [];
     if (settings.ownerNumber) numbers.push(settings.ownerNumber);
     if (settings.sudoNumbers && Array.isArray(settings.sudoNumbers)) {
         numbers.push(...settings.sudoNumbers);
     }
-    // Clean numbers: remove any spaces, ensure they have @s.whatsapp.net
     return numbers.map(num => {
         let clean = num.toString().replace(/\s/g, '');
         if (!clean.includes('@')) clean = `${clean}@s.whatsapp.net`;
@@ -34,7 +33,13 @@ function getProtectedNumbers() {
     });
 }
 
-// Command .antimention on/off (owner/sudo only)
+// Check if a string contains a phone number (Tanzanian or international format)
+function containsPhoneNumber(text) {
+    // Regex for phone numbers: +255... or 0... (with spaces optional)
+    const phoneRegex = /(?:\+?255|0)[\s\-]?[0-9]{2}[\s\-]?[0-9]{3}[\s\-]?[0-9]{4,}/;
+    return phoneRegex.test(text);
+}
+
 async function antimentionCommand(sock, chatId, message, args) {
     const senderId = message.key.participant || message.key.remoteJid;
     const isGroup = chatId.endsWith('@g.us');
@@ -43,7 +48,6 @@ async function antimentionCommand(sock, chatId, message, args) {
         return;
     }
 
-    // Check if sender is owner/sudo (using your lib/isOwner if needed, or read from settings)
     const isOwnerOrSudo = require('../lib/isOwner');
     const isAuthorized = await isOwnerOrSudo(senderId, sock, chatId);
     if (!isAuthorized && !message.key.fromMe) {
@@ -59,7 +63,7 @@ async function antimentionCommand(sock, chatId, message, args) {
     if (sub === 'on') {
         data.groups[chatId].enabled = true;
         saveData(data);
-        await sock.sendMessage(chatId, { text: '🛡️ *Anti‑mention IMEWASHWA* – ujumbe wowote unaomention owner/sudo utafutwa.' }, { quoted: message });
+        await sock.sendMessage(chatId, { text: '🛡️ *Anti‑mention IMEWASHWA* – ujumbe unaomention owner/sudo au namba za simu utafutwa.' }, { quoted: message });
     } else if (sub === 'off') {
         data.groups[chatId].enabled = false;
         saveData(data);
@@ -70,31 +74,35 @@ async function antimentionCommand(sock, chatId, message, args) {
     }
 }
 
-// Function to check and delete mentions (call this from message handler)
+// Function to check and delete mentions (called from main handler)
 async function handleMentionCheck(sock, chatId, message) {
     const data = loadData();
     if (!data.groups[chatId] || !data.groups[chatId].enabled) return;
 
+    // 1. Check for mentioned owner/sudo numbers
     const protectedJids = getProtectedNumbers();
-    if (protectedJids.length === 0) return;
-
-    // Get all mentioned JIDs from the message
     const mentionedJids = message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
-    if (mentionedJids.length === 0) return;
+    const mentionsViolation = protectedJids.some(jid => mentionedJids.includes(jid));
 
-    // Check if any mentioned JID is in the protected list
-    const isViolation = mentionedJids.some(jid => protectedJids.includes(jid));
-    if (!isViolation) return;
+    // 2. Check message text for any phone number pattern
+    let messageText = '';
+    if (message.message?.conversation) messageText = message.message.conversation;
+    else if (message.message?.extendedTextMessage?.text) messageText = message.message.extendedTextMessage.text;
+    else if (message.message?.imageMessage?.caption) messageText = message.message.imageMessage.caption;
+    else if (message.message?.videoMessage?.caption) messageText = message.message.videoMessage.caption;
+    
+    const phoneViolation = containsPhoneNumber(messageText);
 
-    // Delete the offending message
-    try {
-        await sock.sendMessage(chatId, { delete: message.key });
-    } catch (err) {
-        console.error('Failed to delete mention message:', err);
+    if (mentionsViolation || phoneViolation) {
+        // Delete the offending message
+        try {
+            await sock.sendMessage(chatId, { delete: message.key });
+        } catch (err) {
+            console.error('Failed to delete message:', err);
+        }
+        // Optional warning
+        await sock.sendMessage(chatId, { text: `⚠️ *Anti‑mention*\nUjumbe wako umeondolewa kwa sababu ulijumuisha namba ya simu au kumtag mtu aliyelindwa.` });
     }
-
-    // Optional: send a warning (can be removed if you don't want extra messages)
-    await sock.sendMessage(chatId, { text: `⚠️ *Anti‑mention*\nHuruhusiwi kumtag owner au sudo wa bot!` });
 }
 
 module.exports = { antimentionCommand, handleMentionCheck };

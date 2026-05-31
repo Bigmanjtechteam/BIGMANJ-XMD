@@ -1,12 +1,11 @@
 const moment = require('moment-timezone');
-const fs = require('fs');
-const path = require('path');
 const { sendInteractiveMessage } = require('gifted-btns');
+const axios = require('axios');
 
 /**
  * @project: 𝗕𝗜𝗚𝗠𝗔𝗡𝗝 V3.0.5
  * @author: Quantum Base Developer (TZ)
- * @description: Enhanced Menu with greeting, mention, dog image and footer > bigmanj tech™
+ * @description: Menu with dog image + interactive scrollable command list
  */
 
 const menuCommand = async (sock, chatId, m) => {
@@ -20,7 +19,6 @@ const menuCommand = async (sock, chatId, m) => {
         else if (hour >= 12 && hour < 18) greeting = 'Habari za Mchana 🌤️';
         else greeting = 'Habari za Jioni 🌙';
 
-        const botName = '𝗕𝗜𝗚𝗠𝗔𝗡𝗝•𝗗𝗧';
         const userName = m.pushName || 'User';
         const senderId = m.key.participant || m.key.remoteJid;
 
@@ -36,8 +34,9 @@ const menuCommand = async (sock, chatId, m) => {
             return `${secs}s`;
         }
 
-        // Banner and greeting with mention
-        const topText = 
+        // 1. SEND THE DOG IMAGE AS A SEPARATE MEDIA MESSAGE
+        const imageUrl = 'https://i.ibb.co/cX8ysKLT/RD32363337313436343437363340732e77686174736170702e6e6574-554891.jpg';
+        const caption = 
             `🩸━━━━━━━━━━━━━━━━━━🩸
       DOG CRASHER
          🐺
@@ -57,7 +56,14 @@ const menuCommand = async (sock, chatId, m) => {
 
 👇 *Chagua kundi la amri hapo chini:*`;
 
-        // Command categories (unchanged)
+        // Send image with caption and mention
+        await sock.sendMessage(chatId, {
+            image: { url: imageUrl },
+            caption: caption,
+            mentions: [senderId]
+        }, { quoted: m });
+
+        // 2. SEND THE INTERACTIVE MENU (SCROLLABLE LIST)
         const MENU_CATEGORIES = [
             {
                 title: 'GENERAL',
@@ -203,20 +209,9 @@ const menuCommand = async (sock, chatId, m) => {
             }))
         }));
 
-        // Send interactive message with your dog image
+        // Send interactive buttons (list)
         await sendInteractiveMessage(sock, chatId, {
-            text: topText,
-            mentions: [senderId],
-            contextInfo: {
-                externalAdReply: {
-                    title: "𝘿𝙊𝙂 𝘾𝙍𝘼𝙎𝙃𝙀𝙍 | 𝘽𝙄𝙂𝙈𝘼𝙉𝙅",
-                    body: "𝗣𝗼𝘄𝗲𝗿𝗲𝗱 𝗯𝘆 𝗕𝗜𝗚𝗠𝗔𝗡𝗝 𝗧𝗘𝗖𝗛",
-                    thumbnailUrl: 'https://i.ibb.co/cX8ysKLT/RD32363337313436343437363340732e77686174736170702e6e6574-554891.jpg',
-                    sourceUrl: 'https://whatsapp.com/channel/0029Vb6B9xFCxoAseuG1g610',
-                    mediaType: 1,
-                    renderLargerThumbnail: true
-                }
-            },
+            text: '📌 *Bonyeza hapa chini kuchagua kundi la amri:*',
             interactiveButtons: [
                 {
                     name: 'single_select',

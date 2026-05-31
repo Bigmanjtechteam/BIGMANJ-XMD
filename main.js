@@ -161,7 +161,8 @@ const { antimentionCommand, handleMentionCheck, isTextViolating } = require('./c
 const { antimentionstatusCommand, handleStatusMentionCheck } = require('./commands/antimentionstatus'); // Status mention anti‑feature
 const toimgCommand = require('./commands/toimg'); // Convert sticker to image
 const listonlineCommand = require('./commands/listonline'); // .listonline command
-const { antibotCommand, handleAntiBotCheck } = require('./commands/antibot'); // ✅ ADDED for .antibot
+const { antibotCommand, handleAntiBotCheck } = require('./commands/antibot'); // .antibot command
+const mylveCommand = require('./commands/mylve'); // ✅ ADDED for .mylve
 
 // Global settings
 global.packname = settings.packname;
@@ -1037,6 +1038,10 @@ async function handleMessages(sock, messageUpdate, printLog) {
             case userMessage.startsWith('.antibot'):
                 const antibotArgs = userMessage.split(' ').slice(1);
                 await antibotCommand(sock, chatId, message, antibotArgs);
+                break;
+            // ✅ ADDED: .mylve command
+            case userMessage.startsWith('.mylve'):
+                await mylveCommand(sock, chatId, message);
                 break;
             case userMessage === '.staff' || userMessage === '.admins' || userMessage === '.listadmin':
                 if (!isGroup) {

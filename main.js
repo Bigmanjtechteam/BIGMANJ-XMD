@@ -149,6 +149,19 @@ const mylveCommand = require('./commands/mylve');
 // NEW: .autourl command
 const autourlCommand = require('./commands/autourl');
 
+// ==================== SUBMENU IMPORTS ====================
+const menuGeneral = require('./commands/menu-general');
+const menuGroup = require('./commands/menu-group');
+const menuSecurity = require('./commands/menu-security');
+const menuAi = require('./commands/menu-ai');
+const menuDownload = require('./commands/menu-download');
+const menuEffects = require('./commands/menu-effects');
+const menuOwner = require('./commands/menu-owner');
+const menuSettings = require('./commands/menu-settings');
+const menuTools = require('./commands/menu-tools');
+const menuFun = require('./commands/menu-fun');
+const menuAutomation = require('./commands/menu-automation');
+
 // Global settings
 global.packname = settings.packname;
 global.author = settings.author;
@@ -333,6 +346,53 @@ async function handleMessages(sock, messageUpdate, printLog) {
 
         // ---------- SWITCH STATEMENT ----------
         switch (true) {
+            // ========== SUBMENU COMMANDS ==========
+            case userMessage === '.menu-general':
+                await menuGeneral(sock, chatId, message);
+                commandExecuted = true;
+                break;
+            case userMessage === '.menu-group':
+                await menuGroup(sock, chatId, message);
+                commandExecuted = true;
+                break;
+            case userMessage === '.menu-security':
+                await menuSecurity(sock, chatId, message);
+                commandExecuted = true;
+                break;
+            case userMessage === '.menu-ai':
+                await menuAi(sock, chatId, message);
+                commandExecuted = true;
+                break;
+            case userMessage === '.menu-download':
+                await menuDownload(sock, chatId, message);
+                commandExecuted = true;
+                break;
+            case userMessage === '.menu-effects':
+                await menuEffects(sock, chatId, message);
+                commandExecuted = true;
+                break;
+            case userMessage === '.menu-owner':
+                await menuOwner(sock, chatId, message);
+                commandExecuted = true;
+                break;
+            case userMessage === '.menu-settings':
+                await menuSettings(sock, chatId, message);
+                commandExecuted = true;
+                break;
+            case userMessage === '.menu-tools':
+                await menuTools(sock, chatId, message);
+                commandExecuted = true;
+                break;
+            case userMessage === '.menu-fun':
+                await menuFun(sock, chatId, message);
+                commandExecuted = true;
+                break;
+            case userMessage === '.menu-automation':
+                await menuAutomation(sock, chatId, message);
+                commandExecuted = true;
+                break;
+
+            // ========== OTHER COMMANDS ==========
             case userMessage.startsWith('.add'):
                 const addArgs = userMessage.trim().split(/\s+/);
                 const phoneNumber = addArgs.slice(1).join(' ').trim();
@@ -623,7 +683,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
             case userMessage.startsWith('.tourl') || userMessage.startsWith('.url'):
                 await urlCommand(sock, chatId, message);
                 break;
-            // NEW: .autourl command
             case userMessage === '.autourl':
             case userMessage === '.audiourl':
                 await autourlCommand.execute(sock, chatId, message);

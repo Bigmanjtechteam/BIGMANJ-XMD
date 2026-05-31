@@ -91,8 +91,8 @@ const kickCommand = require('./commands/kick');
 // quote command removed
 const { complimentCommand } = require('./commands/compliment');
 // insult command removed
-// lyrics import changed – now using your new lyric.js file
-const lyricsCommand = require('./commands/lyric'); // ✅ UPDATED – works with .lyric and .lyrics
+// lyrics import – now pointing to your `lyrics.js` file
+const lyricsCommand = require('./commands/lyrics');   // ✅ FIXED: matches your file name
 // truth command removed
 const { clearCommand } = require('./commands/clear');
 const pingCommand = require('./commands/ping');
@@ -905,7 +905,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
             case userMessage.startsWith('.compliment'):
                 await complimentCommand(sock, chatId, message);
                 break;
-            // ✅ Uses the updated lyricsCommand (works for both .lyric and .lyrics)
+            // ✅ Uses the lyricsCommand from your `lyrics.js` file
             case userMessage.startsWith('.lyrics') || userMessage.startsWith('.lyric'):
                 const songTitle = userMessage.split(' ').slice(1).join(' ');
                 await lyricsCommand(sock, chatId, message, songTitle);

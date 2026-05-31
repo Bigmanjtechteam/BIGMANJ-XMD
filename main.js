@@ -91,7 +91,8 @@ const kickCommand = require('./commands/kick');
 // quote command removed
 const { complimentCommand } = require('./commands/compliment');
 // insult command removed
-const { lyricsCommand } = require('./commands/lyrics');
+// lyrics import changed – now using your new lyric.js file
+const lyricsCommand = require('./commands/lyric'); // ✅ UPDATED – works with .lyric and .lyrics
 // truth command removed
 const { clearCommand } = require('./commands/clear');
 const pingCommand = require('./commands/ping');
@@ -162,7 +163,7 @@ const { antimentionstatusCommand, handleStatusMentionCheck } = require('./comman
 const toimgCommand = require('./commands/toimg'); // Convert sticker to image
 const listonlineCommand = require('./commands/listonline'); // .listonline command
 const { antibotCommand, handleAntiBotCheck } = require('./commands/antibot'); // .antibot command
-const mylveCommand = require('./commands/mylve'); // ✅ ADDED for .mylve
+const mylveCommand = require('./commands/mylve'); // .mylve command
 
 // Global settings
 global.packname = settings.packname;
@@ -904,9 +905,10 @@ async function handleMessages(sock, messageUpdate, printLog) {
             case userMessage.startsWith('.compliment'):
                 await complimentCommand(sock, chatId, message);
                 break;
+            // ✅ Uses the updated lyricsCommand (works for both .lyric and .lyrics)
             case userMessage.startsWith('.lyrics') || userMessage.startsWith('.lyric'):
                 const songTitle = userMessage.split(' ').slice(1).join(' ');
-                await lyricsCommand(sock, chatId, songTitle, message);
+                await lyricsCommand(sock, chatId, message, songTitle);
                 break;
             case userMessage === '.clear':
                 if (isGroup) await clearCommand(sock, chatId);

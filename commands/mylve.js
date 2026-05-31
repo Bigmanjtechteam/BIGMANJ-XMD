@@ -1,24 +1,26 @@
 const settings = require('../settings');
 
-/**
- * .mylve – My Love command (owner only)
- * Returns a fixed romantic message.
- */
 async function mylveCommand(sock, chatId, message) {
     try {
-        // 1. Get sender's JID
+        // 1. Get sender's JID (participant for groups, remoteJid for private chats)
         const senderId = message.key.participant || message.key.remoteJid;
 
-        // 2. Get owner's JID from settings.js
+        // 2. Get owner's JID from settings.js (normalize)
         let ownerJid = null;
         if (settings.ownerNumber) {
             let clean = settings.ownerNumber.toString().replace(/\s/g, '');
-            if (!clean.includes('@')) clean = `${clean}@s.whatsapp.net`;
+            // Ensure it has @s.whatsapp.net suffix
+            if (!clean.includes('@')) {
+                clean = `${clean}@s.whatsapp.net`;
+            }
             ownerJid = clean;
         }
 
-        // 3. Check if sender is the bot owner
-        const isOwner = senderId === ownerJid;
+        // 3. Also allow if the message is from the bot itself (fromMe)
+        const isFromMe = message.key.fromMe === true;
+
+        // 4. Check if sender is the bot owner
+        const isOwner = isFromMe || (ownerJid && senderId === ownerJid);
 
         if (!isOwner) {
             await sock.sendMessage(chatId, {
@@ -27,7 +29,7 @@ async function mylveCommand(sock, chatId, message) {
             return;
         }
 
-        // 4. Fixed response (change "DAT PERSON" and "ndigwa" as you like)
+        // 5. Fixed response (change "DAT PERSON" and "ndigwa" as you like)
         const loveMessage = `❤️ Your Love Is (*DAT PERSON* {ndigwa}) ❤️\n\n> bigamnj`;
 
         await sock.sendMessage(chatId, { text: loveMessage }, { quoted: message });

@@ -20,10 +20,11 @@ const handler = async (sock, chatId, m) => {
     caption += `━━━━━━━━━━━━━━━━━━━━━━\n`;
     for (const cmd of commands) caption += `• ${cmd}\n`;
     caption += `\n🤖 Access powerful AI tools.\n💡 Smart answers anytime.\n\n`;
-    caption += `🚀 BIGMANj BOT — Fast • Powerful • Reliable\n\n> bigmanj tech™`;
+    caption += `🚀 *BIGMANj MD* — Fast • Powerful • Reliable\n\n> bigmanj tech™`;
 
+    await sock.sendMessage(chatId, { react: { text: '🤖', key: m.key } });
     await sock.sendMessage(chatId, {
-        image: { url: 'https://n.uguu.se/lWjrWdPN.jpg' }, // Picha ya AI MENU
+        image: { url: 'https://n.uguu.se/lWjrWdPN.jpg' },
         caption: caption,
         mentions: [senderId]
     }, { quoted: m });

@@ -25,7 +25,7 @@ const handler = async (sock, chatId, m) => {
     caption += `🚀 BIGMANj BOT — Fast • Powerful • Reliable\n\n> bigmanj tech™`;
 
     await sock.sendMessage(chatId, {
-        image: { url: 'https://picsum.photos/id/20/800/400' }, // Blue theme
+        image: { url: 'https://n.uguu.se/xBzwyuUT.jpg' }, // Picha yako mpya
         caption: caption,
         mentions: [senderId]
     }, { quoted: m });

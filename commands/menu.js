@@ -28,6 +28,7 @@ const getGreeting = () => {
 const getMentionNumber = (jid) => jid.split('@')[0];
 const TOTAL_COMMANDS = 210;
 const OWNER_NAME = 'BIGMANj';
+const OWNER_NUMBER = '255777580820';
 const AUDIO_URL = 'https://files.catbox.moe/0mn7pe.mp3';
 let cachedAudio = null;
 
@@ -77,6 +78,7 @@ const sendMainMenu = async (sock, chatId, m, senderId) => {
     caption += `╰━━━━━━━━━━━━━━⬣\n\n`;
     caption += `${greeting} @${mention}\n\n`;
     caption += `👑 Owner : ${OWNER_NAME}\n`;
+    caption += `📞 Owner No : ${OWNER_NUMBER}\n`;
     caption += `⚡ Commands : ${TOTAL_COMMANDS}\n`;
     caption += `📅 Date : ${date}\n`;
     caption += `⏰ Time : ${time}\n`;

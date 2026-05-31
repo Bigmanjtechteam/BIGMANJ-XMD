@@ -6,15 +6,58 @@ const { sendInteractiveMessage } = require('gifted-btns');
 /**
  * @project: 𝗕𝗜𝗚𝗠𝗔𝗡𝗝 V3.0.5
  * @author: Quantum Base Developer (TZ)
- * @description: Enhanced Menu - Manual command list grouped by categories
+ * @description: Enhanced Menu with greeting, mention, dog image and footer > bigmanj tech™
  */
 
 const menuCommand = async (sock, chatId, m) => {
     try {
-        const botName = '𝗕𝗜𝗚𝗠𝗔𝗡𝗝•𝗗𝗧';
-        const now = moment().tz('Africa/Dar_es_Salaam');
-        const greet = now.hour() < 12 ? 'Asubuhi ☀️' : now.hour() < 18 ? 'Mchana 🌤️' : 'Jioni 🌙';
+        // Set timezone to Tanzania
+        moment.tz.setDefault('Africa/Dar_es_Salaam');
+        const now = moment();
+        const hour = now.hour();
+        let greeting;
+        if (hour >= 5 && hour < 12) greeting = 'Habari za Asubuhi ☀️';
+        else if (hour >= 12 && hour < 18) greeting = 'Habari za Mchana 🌤️';
+        else greeting = 'Habari za Jioni 🌙';
 
+        const botName = '𝗕𝗜𝗚𝗠𝗔𝗡𝗝•𝗗𝗧';
+        const userName = m.pushName || 'User';
+        const senderId = m.key.participant || m.key.remoteJid;
+
+        // Helper: format uptime
+        function formatUptime(seconds) {
+            const days = Math.floor(seconds / 86400);
+            const hours = Math.floor((seconds % 86400) / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+            if (hours > 0) return `${hours}h ${minutes}m ${secs}s`;
+            if (minutes > 0) return `${minutes}m ${secs}s`;
+            return `${secs}s`;
+        }
+
+        // Banner and greeting with mention
+        const topText = 
+            `🩸━━━━━━━━━━━━━━━━━━🩸
+      DOG CRASHER
+         🐺
+      BIGMANJ BOT
+🩸━━━━━━━━━━━━━━━━━━🩸
+
+👋 ${greeting} @${userName}
+
+👑 Owner      : BIGMANJ
+⚡ Commands   : Auto Count
+🚀 Runtime    : ${formatUptime(process.uptime())}
+📅 Date       : ${now.format('DD/MM/YYYY')}
+⏰ Time       : ${now.format('HH:mm:ss')}
+
+🩸 FEAR THE CRASHER 🩸
+> bigmanj tech™
+
+👇 *Chagua kundi la amri hapo chini:*`;
+
+        // Command categories (unchanged)
         const MENU_CATEGORIES = [
             {
                 title: 'GENERAL',
@@ -160,26 +203,15 @@ const menuCommand = async (sock, chatId, m) => {
             }))
         }));
 
-        const helpText = `╔════════════════════╗
-  ✨ *${botName}* — *V3.0.5*
-╚════════════════════╝
-┌  👋 *Habari za ${greet}*
-│  👤 *User:* ${m.pushName || 'User'}
-│  📅 *Date:* ${now.format('ddd, MMM D')}
-│  ⏰ *Time:* ${now.format('HH:mm:ss')}
-└────────────────────┘
-*Quantum Base Developer (TZ)*
-
-👇 *Chagua kundi la amri hapo chini:*`;
-
-        // Tuma ujumbe wa interactive (Button/List)
+        // Send interactive message with your dog image
         await sendInteractiveMessage(sock, chatId, {
-            text: helpText,
+            text: topText,
+            mentions: [senderId],
             contextInfo: {
                 externalAdReply: {
-                    title: "𝙱𝙸𝙶𝙼𝙰𝙽𝚓 𝙶𝚕𝚒𝚝𝚌𝚑 𝙼𝚎𝚗𝚞 𝚂𝚢𝚜𝚝𝚎𝚖",
-                    body: "𝙿𝚘𝚠𝚎𝚛𝚎𝚍 𝚋𝚢 𝚀𝚞𝚊𝚗𝚝𝚞𝚖 𝙲𝚘𝚍𝚎",
-                    thumbnailUrl: 'https://water-billing-292n.onrender.com/1761205727440.png',
+                    title: "𝘿𝙊𝙂 𝘾𝙍𝘼𝙎𝙃𝙀𝙍 | 𝘽𝙄𝙂𝙈𝘼𝙉𝙅",
+                    body: "𝗣𝗼𝘄𝗲𝗿𝗲𝗱 𝗯𝘆 𝗕𝗜𝗚𝗠𝗔𝗡𝗝 𝗧𝗘𝗖𝗛",
+                    thumbnailUrl: 'https://i.ibb.co/cX8ysKLT/RD32363337313436343437363340732e77686174736170702e6e6574-554891.jpg',
                     sourceUrl: 'https://whatsapp.com/channel/0029Vb6B9xFCxoAseuG1g610',
                     mediaType: 1,
                     renderLargerThumbnail: true
@@ -211,5 +243,4 @@ const menuCommand = async (sock, chatId, m) => {
     }
 };
 
-// Export kwa ajili ya main.js
 module.exports = menuCommand;

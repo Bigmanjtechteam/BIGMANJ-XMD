@@ -12,22 +12,14 @@ const handler = async (sock, chatId, m) => {
     const senderId = m.key.participant || m.key.remoteJid;
     const greeting = getGreeting();
     const mention = getMentionNumber(senderId);
-
     const commands = ['.help', '.ping', '.alive', '.owner', '.repo', '.stats', '.settings', '.checkupdates', '.jid'];
 
-    let caption = `✨ ΥΟ!!, @${mention}\n\n`;
-    caption += `📂 GENERAL MENU\n`;
-    caption += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+    let caption = `✨ ΥΟ!!, @${mention}\n\n📂 GENERAL MENU\n━━━━━━━━━━━━━━━━━━━━━━\n`;
     for (const cmd of commands) caption += `• ${cmd}\n`;
-    caption += `\n🤖 This section contains general bot commands.\n💡 Use these commands to interact with the bot.\n\n`;
-    caption += `🚀 *BIGMANj MD* — Fast • Powerful • Reliable\n\n> bigmanj tech™`;
+    caption += `\n🤖 General bot commands.\n🚀 *BIGMANj MD* — Fast • Powerful • Reliable\n\n> bigmanj tech™`;
 
     await sock.sendMessage(chatId, { react: { text: '📂', key: m.key } });
-    await sock.sendMessage(chatId, {
-        image: { url: 'https://n.uguu.se/xBzwyuUT.jpg' },
-        caption: caption,
-        mentions: [senderId]
-    }, { quoted: m });
+    await sock.sendMessage(chatId, { image: { url: 'https://files.catbox.moe/g273hp.jpg' }, caption, mentions: [senderId] }, { quoted: m });
 };
 
 module.exports = handler;

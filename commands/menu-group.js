@@ -12,22 +12,14 @@ const handler = async (sock, chatId, m) => {
     const senderId = m.key.participant || m.key.remoteJid;
     const greeting = getGreeting();
     const mention = getMentionNumber(senderId);
-
     const commands = ['.add', '.kick', '.promote', '.demote', '.tagall', '.tagnotadmin', '.hidetag', '.tag', '.mention', '.setmention', '.setgname', '.setgdesc', '.setgpp', '.staff', '.listonline', '.clear', '.resetlink'];
 
-    let caption = `✨ ΥΟ!!, @${mention}\n\n`;
-    caption += `👥 GROUP MENU\n`;
-    caption += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+    let caption = `✨ ΥΟ!!, @${mention}\n\n👥 GROUP MENU\n━━━━━━━━━━━━━━━━━━━━━━\n`;
     for (const cmd of commands) caption += `• ${cmd}\n`;
-    caption += `\n👥 This menu helps manage WhatsApp groups.\n💡 Perfect for group management.\n\n`;
-    caption += `🚀 *BIGMANj MD* — Fast • Powerful • Reliable\n\n> bigmanj tech™`;
+    caption += `\n👥 Group management commands.\n🚀 *BIGMANj MD* — Fast • Powerful • Reliable\n\n> bigmanj tech™`;
 
     await sock.sendMessage(chatId, { react: { text: '👥', key: m.key } });
-    await sock.sendMessage(chatId, {
-        image: { url: 'https://o.uguu.se/jqaViEPe.jpg' },
-        caption: caption,
-        mentions: [senderId]
-    }, { quoted: m });
+    await sock.sendMessage(chatId, { image: { url: 'https://files.catbox.moe/g273hp.jpg' }, caption, mentions: [senderId] }, { quoted: m });
 };
 
 module.exports = handler;

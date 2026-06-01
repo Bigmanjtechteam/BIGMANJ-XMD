@@ -8,7 +8,7 @@ const getGreeting = () => {
     return '🌙 Habari za Jioni';
 };
 
-// Makundi na commands zao (hizi ni zile zilizopo kwenye submenu zako)
+// Makundi na commands zao
 const CATEGORIES = {
     '📂 GENERAL': [
         '.help', '.ping', '.alive', '.owner', '.repo', '.stats', '.settings', '.checkupdates', '.jid'
@@ -74,12 +74,13 @@ const handler = async (sock, chatId, m) => {
 
     caption += `🚀 *BIGMANj MD* — Fast • Powerful • Reliable\n\n> bigmanj tech™`;
 
-    // React with 📋 before sending
+    // React 📋 kabla ya kutuma
     await sock.sendMessage(chatId, { react: { text: '📋', key: m.key } });
 
-    // Send as text (can also use an image, but text is fine for long list)
+    // Tuma picha na ujumbe
     await sock.sendMessage(chatId, {
-        text: caption,
+        image: { url: 'https://files.catbox.moe/g273hp.jpg' },
+        caption: caption,
         mentions: [senderId]
     }, { quoted: m });
 };

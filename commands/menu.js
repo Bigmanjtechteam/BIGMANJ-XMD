@@ -75,9 +75,10 @@ const sendMainMenu = async (sock, chatId, m, senderId) => {
     caption += `┃ *.menu-tools*\n`;
     caption += `┃ *.menu-fun*\n`;
     caption += `┃ *.menu-automation*\n`;
-    caption += `┃ *.menu-all*\n`;   // ← imeongezwa
+    caption += `┃ *.menu-all*\n`;
     caption += `╰━━━━━━━━━━━━━━⬣\n\n`;
     caption += `${greeting} @${mention}\n\n`;
+    caption += `🤖 *BIGMANj MD* – *WhatsApp Bot* developed in collaboration with *Ωuantum Base Developer*.\n\n`;
     caption += `👑 Owner : ${OWNER_NAME}\n`;
     caption += `📞 Owner No : ${OWNER_NUMBER}\n`;
     caption += `⚡ Commands : ${TOTAL_COMMANDS}\n`;

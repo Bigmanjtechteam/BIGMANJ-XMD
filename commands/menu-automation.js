@@ -14,19 +14,11 @@ const handler = async (sock, chatId, m) => {
     const mention = getMentionNumber(senderId);
     const commands = ['.autostatus', '.autoread', '.autotyping', '.areact', '.antibot', '.antimention', '.antimentionstatus', '.antilink', '.antitag', '.chatbot', '.bigmanj'];
 
-    let caption = `✨ ΥΟ!!, @${mention}\n\n⚡ AUTOMATION MENU\n━━━━━━━━━━━━━━━━━━━━━━\n`;
+    let caption = `✨ ${greeting} @${mention}\n\n⚡ *AUTOMATION MENU*\n━━━━━━━━━━━━━━━━━━━━━━\n`;
     for (const cmd of commands) caption += `• ${cmd}\n`;
     caption += `\n🤖 Automate your WhatsApp experience.\n🚀 *BIGMANj MD* — Fast • Powerful • Reliable\n\n> bigmanj tech™`;
 
-    try {
-        await sock.sendMessage(chatId, {
-            image: { url: 'https://files.catbox.moe/g273hp.jpg' },
-            caption: caption,
-            mentions: [senderId]
-        }, { quoted: m });
-    } catch (err) {
-        await sock.sendMessage(chatId, { text: caption, mentions: [senderId] }, { quoted: m });
-    }
+    await sock.sendMessage(chatId, { text: caption, mentions: [senderId] }, { quoted: m });
     await sock.sendMessage(chatId, { react: { text: '⚡', key: m.key } });
 };
 

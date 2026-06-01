@@ -12,22 +12,14 @@ const handler = async (sock, chatId, m) => {
     const senderId = m.key.participant || m.key.remoteJid;
     const greeting = getGreeting();
     const mention = getMentionNumber(senderId);
-
     const commands = ['.toimg', '.autourl', '.audiourl', '.url', '.tourl', '.getcode', '.getlink', '.qr', '.emojimix', '.emix', '.stickertelegram', '.tg', '.tgsticker', '.telesticker', '.viewonce', '.vv', '.sticker', '.s', '.stickeralt', '.gpstatus', '.tts', '.delete', '.del', '.report', '.weather', '.halotel', '.topmembers', '.character', '.stats', '.repo'];
 
-    let caption = `✨ ΥΟ!!, @${mention}\n\n`;
-    caption += `🔧 TOOLS MENU\n`;
-    caption += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+    let caption = `✨ ΥΟ!!, @${mention}\n\n🔧 TOOLS MENU\n━━━━━━━━━━━━━━━━━━━━━━\n`;
     for (const cmd of commands) caption += `• ${cmd}\n`;
-    caption += `\n🔧 Useful tools for daily tasks.\n💡 Powerful utilities in one place.\n\n`;
-    caption += `🚀 *BIGMANj MD* — Fast • Powerful • Reliable\n\n> bigmanj tech™`;
+    caption += `\n🔧 Useful tools for daily tasks.\n🚀 *BIGMANj MD* — Fast • Powerful • Reliable\n\n> bigmanj tech™`;
 
     await sock.sendMessage(chatId, { react: { text: '🔧', key: m.key } });
-    await sock.sendMessage(chatId, {
-        image: { url: 'https://n.uguu.se/fbsNWEDl.jpg' },
-        caption: caption,
-        mentions: [senderId]
-    }, { quoted: m });
+    await sock.sendMessage(chatId, { image: { url: 'https://files.catbox.moe/g273hp.jpg' }, caption, mentions: [senderId] }, { quoted: m });
 };
 
 module.exports = handler;

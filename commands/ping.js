@@ -1,62 +1,95 @@
 const os = require('os');
 const { sendButtons } = require('gifted-btns');
 
-function formatTime(seconds) {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.floor(seconds % 60);
-    return `${h}h ${m}m ${s}s`;
+function formatUptime(seconds) {
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+    if (hours > 0) return `${hours}h ${minutes}m ${secs}s`;
+    if (minutes > 0) return `${minutes}m ${secs}s`;
+    return `${secs}s`;
+}
+
+function getSpeedStatus(latency) {
+    if (latency < 100) return { text: 'Excellent', emoji: '🟢' };
+    if (latency < 300) return { text: 'Good', emoji: '🟡' };
+    return { text: 'Slow', emoji: '🔴' };
 }
 
 async function pingCommand(sock, chatId, message) {
     try {
         const start = Date.now();
-        await sock.sendMessage(chatId, { text: 'Checking...' }, { quoted: message });
+        await sock.sendMessage(chatId, { text: '⚡' }, { quoted: message });
         const latency = Date.now() - start;
 
-        const uptime = formatTime(process.uptime());
-        const ram = (process.memoryUsage().rss / 1024 / 1024).toFixed(1);
+        const uptime = formatUptime(process.uptime());
+        const usedRam = (process.memoryUsage().rss / 1024 / 1024).toFixed(1);
         const totalRam = (os.totalmem() / 1024 / 1024 / 1024).toFixed(1);
         const freeRam = (os.freemem() / 1024 / 1024 / 1024).toFixed(1);
-        const cpu = os.cpus().length;
+        const cpuCores = os.cpus().length;
         const platform = os.platform();
+        const platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
 
-        // System status
-        const status = latency < 100 ? '🟢 Excellent' : latency < 300 ? '🟡 Good' : '🔴 Slow';
+        const speedStatus = getSpeedStatus(latency);
 
-        const pingText = `
-🚀 *SYSTEM STATUS CHECK*
-━━━━━━━━━━━━━━━━━━━━━━
-⚡ *Speed:* ${latency}ms (${status})
-⏱️ *Uptime:* ${uptime}
-💾 *RAM:* ${ram}MB / ${totalRam}GB
-🆓 *Free RAM:* ${freeRam}GB
-🖥️ *CPU Cores:* ${cpu}
-💻 *Platform:* ${platform}
-━━━━━━━━━━━━━━━━━━━━━━
-*© 2026 Bigmanj Labs™*`;
+        const pingText = `╔════════════════════╗
+║   ⚡ BIGMANj ⚡    ║
+╚════════════════════╝
+
+⚡ BIGMANj ENGINE
+SYSTEM STATUS REPORT
+
+━━━━━━━━━━━━━━━━━━━━
+
+🚀 Speed
+└➤ ${latency}ms ${speedStatus.emoji} ${speedStatus.text}
+
+⏱️ Uptime
+└➤ ${uptime}
+
+💾 RAM Usage
+└➤ ${usedRam}MB / ${totalRam}GB
+
+🆓 Free RAM
+└➤ ${freeRam}GB
+
+🖥️ CPU Cores
+└➤ ${cpuCores}
+
+💻 Platform
+└➤ ${platformName}
+
+━━━━━━━━━━━━━━━━━━━━
+
+🟢 ALL SYSTEMS ONLINE
+└➤ Stable Connection
+
+━━━━━━━━━━━━━━━━━━━━
+
+⚫ Refresh    🔵 Help    📊 Detailed Info
+━━━━━━━━━━━━━━━━━━━━
+
+© 2026 Bigmanj Labs™
+> Bigmanj Tech`;
 
         const buttons = [
-            { id: '.ping', text: '🔄 REFRESH' },
+            { id: '.ping', text: '⚫ REFRESH' },
             { id: '.repo', text: '📊 DETAILED INFO' },
-            { id: '.help', text: '❓ HELP' }
+            { id: '.menu', text: '🔵 HELP' }
         ];
 
         await sendButtons(sock, chatId, {
-            title: '⚡ PING RESULTS',
+            title: '⚡ BIGMANj ENGINE',
             text: pingText,
             footer: 'Bigmanj Tech',
             buttons: buttons
         }, { quoted: message });
 
     } catch (error) {
-        console.error('Ping command error:', error);
-        // Try to send error message
-        try {
-            await sock.sendMessage(chatId, { text: '❌ Ping failed - connection issue' }, { quoted: message });
-        } catch (e) {
-            // Silent fail
-        }
+        console.error('Ping error:', error);
+        await sock.sendMessage(chatId, { text: '❌ Failed to get system status' }, { quoted: message });
     }
 }
 

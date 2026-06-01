@@ -14,19 +14,11 @@ const handler = async (sock, chatId, m) => {
     const mention = getMentionNumber(senderId);
     const commands = ['.metallic', '.ice', '.snow', '.impressive', '.matrix', '.light', '.neon', '.devil', '.purple', '.thunder', '.leaves', '.1917', '.arena', '.hacker', '.sand', '.blackpink', '.glitch', '.fire', '.wasted', '.mickey', '.blur', '.take', '.steal', '.crop', '.toimg'];
 
-    let caption = `✨ ΥΟ!!, @${mention}\n\n🎨 EFFECTS MENU\n━━━━━━━━━━━━━━━━━━━━━━\n`;
+    let caption = `✨ ${greeting} @${mention}\n\n🎨 *EFFECTS MENU*\n━━━━━━━━━━━━━━━━━━━━━━\n`;
     for (const cmd of commands) caption += `• ${cmd}\n`;
     caption += `\n🎨 Text and image effects.\n🚀 *BIGMANj MD* — Fast • Powerful • Reliable\n\n> bigmanj tech™`;
 
-    try {
-        await sock.sendMessage(chatId, {
-            image: { url: 'https://files.catbox.moe/g273hp.jpg' },
-            caption: caption,
-            mentions: [senderId]
-        }, { quoted: m });
-    } catch (err) {
-        await sock.sendMessage(chatId, { text: caption, mentions: [senderId] }, { quoted: m });
-    }
+    await sock.sendMessage(chatId, { text: caption, mentions: [senderId] }, { quoted: m });
     await sock.sendMessage(chatId, { react: { text: '🎨', key: m.key } });
 };
 

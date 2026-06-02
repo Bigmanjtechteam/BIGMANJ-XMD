@@ -53,6 +53,15 @@ async function sendAudio(sock, chatId, quotedMsg) {
     } catch (err) { console.error('Audio send error:', err.message); }
 }
 
+// Get colored ball and status based on latency (milliseconds)
+function getSpeedStatus(latency) {
+    if (latency < 100) return { ball: '🟢', text: 'Excellent' };
+    if (latency < 200) return { ball: '⚪', text: 'Good' };
+    if (latency < 300) return { ball: '⚫', text: 'Normal' };
+    if (latency < 400) return { ball: '🔵', text: 'Slow' };
+    return { ball: '🔴', text: 'Slowly' };
+}
+
 const sendMainMenu = async (sock, chatId, m, senderId, latency) => {
     moment.tz.setDefault('Africa/Dar_es_Salaam');
     const now = moment();
@@ -62,9 +71,7 @@ const sendMainMenu = async (sock, chatId, m, senderId, latency) => {
     const date = now.format('DD/MM/YYYY');
     const time = now.format('HH:mm:ss');
 
-    // Determine speed emoji based on latency
-    const speedEmoji = latency < 100 ? '🚀' : (latency < 300 ? '⚡' : '🐢');
-    const speedStatus = latency < 100 ? 'Excellent' : (latency < 300 ? 'Good' : 'Slow');
+    const speedStatus = getSpeedStatus(latency);
 
     let caption = '';
     caption += `╭━━━〔 *BIGMANj MD* 〕━━━⬣\n`;
@@ -83,7 +90,7 @@ const sendMainMenu = async (sock, chatId, m, senderId, latency) => {
     caption += `╰━━━━━━━━━━━━━━⬣\n\n`;
     caption += `${greeting} @${mention}\n\n`;
     caption += `🤖 *BIGMANj MD* – *WhatsApp Bot* developed in collaboration with *Ωuantum Base Developer*.\n\n`;
-    caption += `🚀 *Speed:* ${latency}ms ${speedEmoji} (${speedStatus})\n`;
+    caption += `🚀 *Speed:* ${latency}ms ${speedStatus.ball} (${speedStatus.text})\n`;
     caption += `👑 Owner : ${OWNER_NAME}\n`;
     caption += `📞 Owner No : ${OWNER_NUMBER}\n`;
     caption += `⚡ Commands : ${TOTAL_COMMANDS}\n`;
@@ -106,16 +113,10 @@ const menuHandler = async (sock, chatId, m) => {
     if (text !== '.menu') return;
     const senderId = m.key.participant || m.key.remoteJid;
 
-    // Measure latency: start time just before reaction
     const startTime = Date.now();
-
-    // React 📌
     await sock.sendMessage(chatId, { react: { text: '📌', key: m.key } });
-
-    // Calculate latency
     const latency = Date.now() - startTime;
 
-    // Send main menu with latency info
     await sendMainMenu(sock, chatId, m, senderId, latency);
 };
 

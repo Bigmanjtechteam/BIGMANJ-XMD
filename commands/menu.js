@@ -1,7 +1,23 @@
-const axios = require('axios');
 const moment = require('moment-timezone');
+const axios = require('axios');
 
-const getMentionNumber = (jid) => jid.split('@')[0];
+const getMessageText = (m) => {
+    if (m.message?.conversation) return m.message.conversation;
+    if (m.message?.extendedTextMessage?.text) return m.message.extendedTextMessage.text;
+    return '';
+};
+
+const formatUptime = (seconds) => {
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+    if (hours > 0) return `${hours}h ${minutes}m ${secs}s`;
+    if (minutes > 0) return `${minutes}m ${secs}s`;
+    return `${secs}s`;
+};
+
 const getGreeting = () => {
     const hour = moment().tz('Africa/Dar_es_Salaam').hour();
     if (hour >= 5 && hour < 12) return '🌅 Habari za Asubuhi';
@@ -9,147 +25,94 @@ const getGreeting = () => {
     return '🌙 Habari za Jioni';
 };
 
-// Helper: parse artist - title
-function parseQuery(query) {
-    if (query.includes(' - ')) {
-        const parts = query.split(' - ');
-        return { artist: parts[0].trim(), title: parts[1].trim() };
-    }
-    if (query.toLowerCase().includes(' by ')) {
-        const parts = query.split(/ by /i);
-        return { artist: parts[1].trim(), title: parts[0].trim() };
-    }
-    return { artist: null, title: query };
-}
+const getMentionNumber = (jid) => jid.split('@')[0];
+const TOTAL_COMMANDS = 210;
+const OWNER_NAME = 'BIGMANj';
+const OWNER_NUMBER = '255777580820';
+const AUDIO_URL = 'https://files.catbox.moe/0mn7pe.mp3';
+let cachedAudio = null;
 
-// Nexray API (primary)
-async function fetchFromNexray(query) {
-    const url = `https://api.nexray.eu.cc/search/lyrics?q=${encodeURIComponent(query)}`;
-    const response = await axios.get(url, { timeout: 10000 });
-    const data = response.data;
-    if (data && data.status === true && data.result && data.result.lyrics && data.result.lyrics.plain_lyrics) {
-        return {
-            title: data.result.lyrics.track_name || data.result.title,
-            artist: data.result.lyrics.artist_name || data.result.artist,
-            lyrics: data.result.lyrics.plain_lyrics,
-            source: 'Nexray'
-        };
-    }
-    throw new Error('No lyrics from Nexray');
-}
-
-// Fallback APIs
-async function fetchFromSomeRandom(query) {
-    const url = `https://some-random-api.com/lyrics?title=${encodeURIComponent(query)}`;
-    const res = await axios.get(url, { timeout: 10000 });
-    if (res.data?.lyrics) {
-        return { title: res.data.title, artist: res.data.author, lyrics: res.data.lyrics, source: 'SomeRandom' };
-    }
-    throw new Error('No lyrics from SomeRandom');
-}
-
-async function fetchFromLyricsOvh(artist, title) {
-    const url = `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`;
-    const res = await axios.get(url, { timeout: 10000 });
-    if (res.data?.lyrics) {
-        return { title, artist, lyrics: res.data.lyrics, source: 'lyrics.ovh' };
-    }
-    throw new Error('No lyrics from lyrics.ovh');
-}
-
-async function fetchFromLyrist(query) {
-    const url = `https://lyrist.vercel.app/api/lyrics?q=${encodeURIComponent(query)}`;
-    const res = await axios.get(url, { timeout: 10000 });
-    if (res.data?.lyrics) {
-        return { title: res.data.title || query, artist: res.data.artist || 'Unknown', lyrics: res.data.lyrics, source: 'Lyrist' };
-    }
-    throw new Error('No lyrics from Lyrist');
-}
-
-// Main command
-const lyricsCommand = async (sock, chatId, message, args) => {
+async function getAudioBuffer() {
+    if (cachedAudio) return cachedAudio;
     try {
-        let query = (args || '').trim();
-        if (!query) {
-            const quoted = message.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-            if (quoted && (quoted.conversation || quoted.extendedTextMessage?.text)) {
-                query = (quoted.conversation || quoted.extendedTextMessage?.text || '').trim();
-            }
-            if (!query) {
-                await sock.sendMessage(chatId, {
-                    text: '❌ *Usage:* .lyrics <song title> or .lyrics <artist> - <title>\n\nExample: .lyrics Dandelion\nExample: .lyrics Ruth B - Dandelions'
-                }, { quoted: message });
-                return;
-            }
-        }
-
-        await sock.sendMessage(chatId, { react: { text: '⏳', key: message.key } });
-
-        let result = null;
-
-        // Primary: Nexray
-        try {
-            result = await fetchFromNexray(query);
-        } catch (e) {
-            console.log(`Nexray failed: ${e.message}`);
-            // Fallback 1: SomeRandom
-            try {
-                result = await fetchFromSomeRandom(query);
-            } catch (e2) {
-                console.log(`SomeRandom failed: ${e2.message}`);
-                // Fallback 2: lyrics.ovh (if artist-title)
-                const { artist, title } = parseQuery(query);
-                if (artist && title) {
-                    try {
-                        result = await fetchFromLyricsOvh(artist, title);
-                    } catch (e3) {
-                        console.log(`lyrics.ovh failed: ${e3.message}`);
-                    }
-                }
-                // Fallback 3: Lyrist
-                if (!result) {
-                    try {
-                        result = await fetchFromLyrist(query);
-                    } catch (e4) {
-                        console.log(`Lyrist failed: ${e4.message}`);
-                    }
-                }
-            }
-        }
-
-        if (!result) {
-            throw new Error(`No lyrics found for "${query}". Try a different song title or use "Artist - Song Title" format.`);
-        }
-
-        const senderId = message.key.participant || message.key.remoteJid;
-        const mention = getMentionNumber(senderId);
-        const greeting = getGreeting();
-
-        let caption = `✨ ${greeting} @${mention}\n\n`;
-        caption += `🎵 *LYRICS*\n━━━━━━━━━━━━━━━━━━━━━━\n`;
-        caption += `*Title:* ${result.title}\n`;
-        caption += `*Artist:* ${result.artist}\n\n`;
-        caption += `*Lyrics:*\n${result.lyrics}\n\n`;
-        caption += `🚀 *BIGMANj MD* — Fast • Powerful • Reliable\n\n> bigmanj tech™`;
-        caption += `\n_📡 via ${result.source}_`;
-
-        if (caption.length > 60000) {
-            await sock.sendMessage(chatId, { text: '❌ Lyrics too long to send.' }, { quoted: message });
-            await sock.sendMessage(chatId, { react: { text: '❌', key: message.key } });
-            return;
-        }
-
-        await sock.sendMessage(chatId, { text: caption, mentions: [senderId] }, { quoted: message });
-        await sock.sendMessage(chatId, { react: { text: '✅', key: message.key } });
-
-    } catch (error) {
-        console.error('Lyrics error:', error.message);
-        await sock.sendMessage(chatId, { react: { text: '❌', key: message.key } });
-        let errorMsg = error.message || '❌ *Lyrics not found.*\nTry a different song title.';
-        if (error.message.includes('timeout')) errorMsg = '⏰ Request timeout. Try again.';
-        if (error.message.includes('network')) errorMsg = '🌐 Network error. Try later.';
-        await sock.sendMessage(chatId, { text: errorMsg }, { quoted: message });
+        const res = await axios.get(AUDIO_URL, { responseType: 'arraybuffer', timeout: 30000 });
+        cachedAudio = Buffer.from(res.data);
+        console.log('✅ Audio loaded');
+        return cachedAudio;
+    } catch (err) {
+        console.error('❌ Audio error:', err.message);
+        return null;
     }
+}
+
+async function sendAudio(sock, chatId, quotedMsg) {
+    const buffer = await getAudioBuffer();
+    if (!buffer) return;
+    try {
+        await sock.sendMessage(chatId, { audio: buffer, mimetype: 'audio/mp4', ptt: true }, { quoted: quotedMsg });
+    } catch (err) { console.error('Audio send error:', err.message); }
+}
+
+const sendMainMenu = async (sock, chatId, m, senderId, latency) => {
+    moment.tz.setDefault('Africa/Dar_es_Salaam');
+    const now = moment();
+    const greeting = getGreeting();
+    const mention = getMentionNumber(senderId);
+    const runtime = formatUptime(process.uptime());
+    const date = now.format('DD/MM/YYYY');
+    const time = now.format('HH:mm:ss');
+
+    // Determine speed status
+    const speedEmoji = latency < 100 ? '🚀' : (latency < 300 ? '⚡' : '🐢');
+    const speedStatus = latency < 100 ? 'Excellent' : (latency < 300 ? 'Good' : 'Slow');
+
+    let caption = '';
+    caption += `╭━━━〔 *BIGMANj MD* 〕━━━⬣\n`;
+    caption += `┃ *.menu-general*\n`;
+    caption += `┃ *.menu-group*\n`;
+    caption += `┃ *.menu-security*\n`;
+    caption += `┃ *.menu-ai*\n`;
+    caption += `┃ *.menu-download*\n`;
+    caption += `┃ *.menu-effects*\n`;
+    caption += `┃ *.menu-owner*\n`;
+    caption += `┃ *.menu-settings*\n`;
+    caption += `┃ *.menu-tools*\n`;
+    caption += `┃ *.menu-fun*\n`;
+    caption += `┃ *.menu-automation*\n`;
+    caption += `┃ *.menu-all*\n`;
+    caption += `╰━━━━━━━━━━━━━━⬣\n\n`;
+    caption += `${greeting} @${mention}\n\n`;
+    caption += `🤖 *BIGMANj MD* – *WhatsApp Bot* developed in collaboration with *Ωuantum Base Developer*.\n\n`;
+    caption += `🚀 *Speed:* ${latency}ms ${speedEmoji} (${speedStatus})\n`;
+    caption += `👑 Owner : ${OWNER_NAME}\n`;
+    caption += `📞 Owner No : ${OWNER_NUMBER}\n`;
+    caption += `⚡ Commands : ${TOTAL_COMMANDS}\n`;
+    caption += `📅 Date : ${date}\n`;
+    caption += `⏰ Time : ${time}\n`;
+    caption += `🚀 Runtime : ${runtime}\n\n`;
+    caption += `> bigmanj tech™`;
+
+    // Updated Image URL
+    await sock.sendMessage(chatId, {
+        image: { url: 'https://i.ibb.co/GQDc1XMp/RD32363337313436343437363340732e77686174736170702e6e6574-828925.png' },
+        caption: caption,
+        mentions: [senderId]
+    }, { quoted: m });
+
+    setTimeout(() => sendAudio(sock, chatId, m), 2000);
 };
 
-module.exports = lyricsCommand;
+const menuHandler = async (sock, chatId, m) => {
+    const text = getMessageText(m).trim().toLowerCase();
+    if (text !== '.menu') return;
+    const senderId = m.key.participant || m.key.remoteJid;
+
+    // Measure latency
+    const startTime = Date.now();
+    await sock.sendMessage(chatId, { react: { text: '📌', key: m.key } });
+    const latency = Date.now() - startTime;
+
+    await sendMainMenu(sock, chatId, m, senderId, latency);
+};
+
+module.exports = menuHandler;

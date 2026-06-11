@@ -29,7 +29,7 @@ const getMentionNumber = (jid) => jid.split('@')[0];
 const TOTAL_COMMANDS = 210;
 const OWNER_NAME = 'BIGMANj';
 const OWNER_NUMBER = '255777580820';
-const AUDIO_URL = 'https://files.catbox.moe/k3m90z.m4a';
+const AUDIO_URL = 'https://files.catbox.moe/3n2oum.jpg';
 let cachedAudio = null;
 
 async function getAudioBuffer() {

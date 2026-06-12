@@ -1,6 +1,7 @@
 const fs = require('fs');
+const path = require('path');
 
-const ANTICALL_PATH = './data/anticall.json';
+const ANTICALL_PATH = path.join(process.cwd(), 'data', 'anticall.json');
 
 function readState() {
     try {
@@ -18,7 +19,8 @@ function readState() {
 
 function writeState(state) {
     try {
-        if (!fs.existsSync('./data')) fs.mkdirSync('./data', { recursive: true });
+        const dir = path.dirname(ANTICALL_PATH);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
         fs.writeFileSync(ANTICALL_PATH, JSON.stringify(state, null, 2));
     } catch (err) {
         console.log(`Failed to write anticall state: ${err.message}`);
@@ -100,9 +102,9 @@ async function handleAnticall(sock, update) {
 
     try {
         const call = update.call;
-        if (!call) return;
+        if (!call || !call[0]) return;
 
-        const callerId = call[0]?.from;
+        const callerId = call[0].from;
         if (!callerId) return;
 
         let rawNumber = callerId.split('@')[0];
@@ -116,13 +118,19 @@ async function handleAnticall(sock, update) {
         state.callCounts[rawNumber] = newCount;
         writeState(state);
 
-        await sock.rejectCall(call[0].id, callerId);
+        // Reject the call
+        if (typeof sock.rejectCall === 'function') {
+            await sock.rejectCall(call[0].id, callerId);
+        }
         console.log(`📵 Call rejected from: ${rawNumber} (count: ${newCount})`);
 
         await sendCallPolicyMessage(sock, callerId, rawNumber);
 
         if (newCount >= 3) {
-            // await sock.updateBlockStatus(callerId, 'block');
+            // Optional: block user
+            // if (typeof sock.updateBlockStatus === 'function') {
+            //     await sock.updateBlockStatus(callerId, 'block');
+            // }
             console.log(`🚫 User ${rawNumber} blocked after 3 calls`);
             delete state.callCounts[rawNumber];
             writeState(state);

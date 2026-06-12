@@ -124,7 +124,7 @@ const mickeyCommand = require('./commands/Mickey');
 const updateCommand = require('./commands/update');
 const checkUpdatesCommand = require('./commands/checkupdates');
 const { igsCommand } = require('./commands/igs');
-const { anticallCommand, readState: readAnticallState } = require('./commands/anticall');
+const { anticallCommand, handleAnticall, readState: readAnticallState } = require('./commands/anticall');
 const { pinCommand, verifyPinCommand, checkPinVerification } = require('./commands/pin');
 const { pmblockerCommand, readState: readPmBlockerState } = require('./commands/pmblocker');
 const settingsCommand = require('./commands/settings');
@@ -242,6 +242,16 @@ async function handleStatus(sock, messageUpdate) {
             }
         }
     } catch(e) { console.error(e); }
+}
+
+// ========== ANTICALL EVENT LISTENER ==========
+function initAnticallListener(sock) {
+    if (!sock) return;
+    // Listen for incoming calls
+    sock.ev.on('call', async (callUpdate) => {
+        await handleAnticall(sock, callUpdate);
+    });
+    console.log('📞 Anticall listener active');
 }
 
 async function handleMessages(sock, messageUpdate, printLog) {
@@ -540,6 +550,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 if (!message.key.fromMe && !senderIsOwnerOrSudo) break;
                 const args = userMessage.split(' ').slice(1).join(' ');
                 await anticallCommand(sock, chatId, message, args);
+                commandExecuted = true;
                 break;
             }
             case userMessage.startsWith('.pmblocker'): {
@@ -925,5 +936,6 @@ module.exports = {
     handleStatusUpdate,
     handleGroupParticipantUpdate,
     handleStatus,
-    initOnlineTracker
+    initOnlineTracker,
+    initAnticallListener   // <--- export the new listener initialiser
 };

@@ -118,7 +118,6 @@ async function handleAnticall(sock, update) {
         state.callCounts[rawNumber] = newCount;
         writeState(state);
 
-        // Reject the call
         if (typeof sock.rejectCall === 'function') {
             await sock.rejectCall(call[0].id, callerId);
         }
@@ -127,7 +126,6 @@ async function handleAnticall(sock, update) {
         await sendCallPolicyMessage(sock, callerId, rawNumber);
 
         if (newCount >= 3) {
-            // Optional: block user
             // if (typeof sock.updateBlockStatus === 'function') {
             //     await sock.updateBlockStatus(callerId, 'block');
             // }
